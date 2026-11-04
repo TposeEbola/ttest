@@ -200,17 +200,27 @@ final class SelectionEditingTests: XCTestCase {
         }
     }
 
-    func testOpeningOnlySelectionCannotRotateAwayFromItsHost() async throws {
+    func testDoorSwingRotatesWithoutMovingItsHostWallOrOpening() async throws {
         try await MainActor.run {
             let store = selectionTestStore()
-            let opening = try XCTUnwrap(store.plan.openings.first)
+            let opening = try XCTUnwrap(store.plan.openings.first { $0.kind == .door })
             let before = store.document
             store.selectOpening(opening.id)
-            XCTAssertFalse(store.canRotateSelection)
+            XCTAssertTrue(store.canRotateSelection)
             store.beginRotation()
-            XCTAssertFalse(store.rotationPreviewActive)
+            XCTAssertTrue(store.rotationPreviewActive)
+            store.previewRotation(-90)
             XCTAssertEqual(store.document, before)
             XCTAssertFalse(store.canUndo)
+            store.commitRotation()
+            let edited = try XCTUnwrap(store.selectedOpening)
+            XCTAssertEqual(edited.doorSwingDegrees, 0, accuracy: 0.000_001)
+            XCTAssertEqual(edited.wallID, opening.wallID)
+            XCTAssertEqual(edited.offset, opening.offset)
+            XCTAssertEqual(store.plan.walls, before.activeLayer.plan.walls)
+            XCTAssertEqual(store.undoStack.count, 1)
+            store.undo()
+            XCTAssertEqual(store.document, before)
         }
     }
 }

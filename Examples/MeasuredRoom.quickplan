@@ -1,0 +1,136 @@
+{
+  "activeLayerID" : "6B330095-BBD1-4A64-B75F-DDDE0FFAE232",
+  "layers" : [
+    {
+      "id" : "6B330095-BBD1-4A64-B75F-DDDE0FFAE232",
+      "isLocked" : false,
+      "isVisible" : true,
+      "name" : "Measured room",
+      "opacity" : 1,
+      "plan" : {
+        "areas" : [
+          {
+            "id" : "D68ED872-005E-4477-8E14-E014C9AED2E6",
+            "name" : "Living room",
+            "vertices" : [
+              {
+                "x" : 76.2,
+                "y" : 76.2
+              },
+              {
+                "x" : 6019.8,
+                "y" : 76.2
+              },
+              {
+                "x" : 6019.8,
+                "y" : 4495.8
+              },
+              {
+                "x" : 76.2,
+                "y" : 4495.8
+              }
+            ]
+          }
+        ],
+        "defaultWallThickness" : 152.4,
+        "dimensions" : [
+          {
+            "end" : {
+              "x" : 6019.8,
+              "y" : 1800
+            },
+            "id" : "DB0AC2C2-9186-4EDD-8929-FEF4E8B8D893",
+            "start" : {
+              "x" : 76.2,
+              "y" : 1800
+            }
+          },
+          {
+            "end" : {
+              "x" : 4500,
+              "y" : 4495.8
+            },
+            "id" : "E70569B3-B58B-4AB3-9348-DB51F5222C02",
+            "start" : {
+              "x" : 4500,
+              "y" : 76.2
+            }
+          }
+        ],
+        "openings" : [
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 2032,
+            "hingeAtEnd" : false,
+            "id" : "C122AB08-5ECD-44C5-B15D-34AFA6696557",
+            "kind" : "door",
+            "offset" : 4572,
+            "wallID" : "56024248-9302-4CB3-86DB-49B22623C05B",
+            "width" : 914.4
+          },
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 1219.2,
+            "hingeAtEnd" : false,
+            "id" : "9FE946BA-AC07-4EF3-BAF0-13039991ED7F",
+            "kind" : "window",
+            "offset" : 3048,
+            "wallID" : "72B6BDE7-CB5B-4008-80CE-B2F82C61B3DC",
+            "width" : 1219.2
+          }
+        ],
+        "walls" : [
+          {
+            "end" : {
+              "x" : 6096,
+              "y" : 0
+            },
+            "id" : "72B6BDE7-CB5B-4008-80CE-B2F82C61B3DC",
+            "start" : {
+              "x" : 0,
+              "y" : 0
+            },
+            "thickness" : 152.4
+          },
+          {
+            "end" : {
+              "x" : 6096,
+              "y" : 4572
+            },
+            "id" : "26EE1FDF-4B64-4DE2-A022-AE1F0603DF72",
+            "start" : {
+              "x" : 6096,
+              "y" : 0
+            },
+            "thickness" : 152.4
+          },
+          {
+            "end" : {
+              "x" : 0,
+              "y" : 4572
+            },
+            "id" : "56024248-9302-4CB3-86DB-49B22623C05B",
+            "start" : {
+              "x" : 6096,
+              "y" : 4572
+            },
+            "thickness" : 152.4
+          },
+          {
+            "end" : {
+              "x" : 0,
+              "y" : 0
+            },
+            "id" : "5AD37362-9C99-46C7-A23E-18A126E6A23C",
+            "start" : {
+              "x" : 0,
+              "y" : 4572
+            },
+            "thickness" : 152.4
+          }
+        ]
+      }
+    }
+  ],
+  "version" : 1
+}

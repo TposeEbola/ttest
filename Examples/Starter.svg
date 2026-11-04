@@ -14,7 +14,7 @@
 <polygon class="wall-junction" points="6096,4572 6172.2,4572 6172.2,4648.2 6096,4648.2" fill="black"/>
 <g class="door" transform="translate(1981.2 4572) rotate(180)">
 <line class="opening-cutout" x1="0" y1="0" x2="914.4" y2="0" stroke="white" stroke-width="154.4" stroke-linecap="butt"/>
-<path transform="translate(0 76.2)" d="M 0 0 L 0 914.4 M 914.4 0 A 914.4 914.4 0 0 1 0 914.4" stroke="black" stroke-width="10" fill="none"/>
+<path class="door-leaf" transform="translate(0 76.2)" d="M 0 0 L 0 914.4 M 914.4 0 A 914.4 914.4 0 0 1 0 914.4" stroke="black" stroke-width="10" fill="none"/>
 </g>
 <g class="window" transform="translate(2438.4 0) rotate(0)">
 <line class="opening-cutout" x1="0" y1="0" x2="1219.2" y2="0" stroke="white" stroke-width="154.4" stroke-linecap="butt"/>

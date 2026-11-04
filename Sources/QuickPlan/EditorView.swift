@@ -22,7 +22,7 @@ struct EditorView: View {
                 }
                 Divider()
                 VStack(spacing: 0) {
-                    LayerPanel(store: store).frame(height: 310)
+                    LayerPanel(store: store).frame(minHeight: 230, idealHeight: 340, maxHeight: 380)
                     Divider()
                     inspector
                 }.frame(width: 264)
@@ -108,8 +108,11 @@ struct EditorView: View {
         Group {
             eyebrow("01 / DRAWING TOOLS")
             VStack(spacing: 8) {
-                toolButton(.select, subtitle: "Select & inspect")
+                toolButton(.select, subtitle: "Move walls and openings")
+                toolButton(.pan, subtitle: "Move the canvas")
                 toolButton(.wall, subtitle: "Click corners to connect")
+                toolButton(.measure, subtitle: "Inside wall-to-wall distances")
+                toolButton(.area, subtitle: "Trace room square footage")
             }
             Divider()
             DefaultThicknessEditor(store: store)
@@ -212,7 +215,11 @@ struct EditorView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    if store.selection.wallIDs.count + store.selection.openingIDs.count > 1 {
+                    if let area = store.selectedArea {
+                        AreaInspector(store: store, area: area).id(area.id)
+                    } else if let dimension = store.selectedDimension {
+                        DimensionInspector(store: store, dimension: dimension).id(dimension.id)
+                    } else if store.selection.wallIDs.count + store.selection.openingIDs.count > 1 {
                         Text("Selection").font(.system(size: 23, weight: .semibold))
                         Text("\(store.selection.wallIDs.count) walls · \(store.selection.openingIDs.count) openings")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
@@ -234,15 +241,17 @@ struct EditorView: View {
                         summaryRow("Walls", "\(store.plan.walls.count)")
                         summaryRow("Doors", "\(store.plan.openings.filter { $0.kind == .door }.count)")
                         summaryRow("Windows", "\(store.plan.openings.filter { $0.kind == .window }.count)")
+                        summaryRow("Measurements", "\(store.plan.dimensions.count)")
+                        summaryRow("Room areas", "\(store.plan.areas.count)")
                         summaryRow("Wall length", store.unit.format(store.plan.walls.reduce(0) { $0 + $1.length }))
                         Divider()
-                        Text("Dimensions measure wall centre lines. Wall thickness is drawn equally on each side.")
+                        Text("Wall labels measure centre lines. Use Measure to place inside wall-to-wall dimensions.")
                             .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(4)
                     }
                 }.padding(18)
             }
             Spacer(minLength: 0)
-            if !store.selection.isEmpty {
+            if !store.selection.isEmpty || store.selectedDimensionID != nil || store.selectedAreaID != nil {
                 Divider()
                 Button(action: store.deleteSelection) { Label("Delete selected", systemImage: "trash") }
                     .buttonStyle(.borderless).padding(18)
@@ -343,6 +352,22 @@ private struct OpeningInspector: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(opening.kind.rawValue.capitalized).font(.system(size: 24, weight: .semibold))
             Text("\(store.unit.format(opening.width)) wide").font(.system(size: 12, design: .monospaced))
+            if opening.kind == .door {
+                RotationControls(store: store)
+                summaryRow("Swing angle", "\(opening.doorSwingDegrees.formatted(.number.precision(.fractionLength(0...1))))°")
+                HStack(spacing: 8) {
+                    Button("Flip left / right") {
+                        store.updateDoor(id: opening.id, swingDegrees: -opening.doorSwingDegrees, hingeAtEnd: !opening.hingeAtEnd)
+                    }
+                    Button("Flip in / out") {
+                        store.updateDoor(id: opening.id, swingDegrees: -opening.doorSwingDegrees, hingeAtEnd: opening.hingeAtEnd)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .font(.system(size: 10))
+                Text("Drag the door to move it. Rotate changes its swing while the opening stays in the wall.")
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineSpacing(3)
+            }
             Divider()
             eyebrow("DIMENSIONS / \(unitAbbreviation(store.unit))")
             numberField("Width", value: $width, unit: store.unit)
@@ -365,6 +390,75 @@ private struct OpeningInspector: View {
 }
 
 @MainActor
+private struct DimensionInspector: View {
+    @ObservedObject var store: PlanStore
+    let dimension: PlanDimension
+    @State private var startX = 0.0
+    @State private var startY = 0.0
+    @State private var endX = 0.0
+    @State private var endY = 0.0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Measurement").font(.system(size: 23, weight: .semibold))
+            Text(store.unit.format(dimension.length)).font(.system(size: 14, weight: .medium, design: .monospaced))
+            Divider()
+            eyebrow("ENDPOINTS / \(unitAbbreviation(store.unit))")
+            numberField("Start X", value: $startX, unit: store.unit)
+            numberField("Start Y", value: $startY, unit: store.unit)
+            numberField("End X", value: $endX, unit: store.unit)
+            numberField("End Y", value: $endY, unit: store.unit)
+            Text(unitInputHint(store.unit)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Button("Apply endpoints") {
+                store.updateDimension(id: dimension.id, start: .init(x: startX, y: startY), end: .init(x: endX, y: endY))
+            }.buttonStyle(BlackButtonStyle())
+            Text("Measurements mark a distance between two points. They stay where you placed them when walls move.")
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+        }
+        .onAppear(perform: populate)
+        .onChange(of: dimension) { _, _ in populate() }
+    }
+
+    private func populate() {
+        startX = dimension.start.x; startY = dimension.start.y
+        endX = dimension.end.x; endY = dimension.end.y
+    }
+}
+
+@MainActor
+private struct AreaInspector: View {
+    @ObservedObject var store: PlanStore
+    let area: PlanArea
+    @State private var name = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Room area").font(.system(size: 23, weight: .semibold))
+            Text(store.unit.formatArea(area.areaSquareMillimetres))
+                .font(.system(size: 23, weight: .medium, design: .monospaced))
+                .accessibilityLabel("Area: \(store.unit.formatArea(area.areaSquareMillimetres))")
+            Divider()
+            eyebrow("ROOM NAME")
+            TextField("Room name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(applyName)
+            Button("Apply name", action: applyName).buttonStyle(BlackButtonStyle())
+            Divider()
+            summaryRow("Perimeter", store.unit.format(area.perimeter))
+            summaryRow("Corners", "\(area.vertices.count)")
+            Text("The area follows the boundary you traced. It stays in place when walls move; delete and retrace it to change the boundary.")
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+        }
+        .onAppear { name = area.name }
+        .onChange(of: area) { _, current in name = current.name }
+    }
+
+    private func applyName() {
+        store.updateArea(id: area.id, name: name, vertices: area.vertices)
+    }
+}
+
+@MainActor
 private struct DefaultThicknessEditor: View {
     @ObservedObject var store: PlanStore
     @State private var thickness = 150.0
@@ -384,6 +478,7 @@ private struct DefaultThicknessEditor: View {
         }
         .onAppear { thickness = store.plan.defaultWallThickness }
         .onChange(of: store.plan.defaultWallThickness) { _, value in thickness = value }
+        .disabled(!store.canEditActiveLayer)
     }
 }
 
@@ -394,6 +489,7 @@ private func numberField(_ title: String, value: Binding<Double>, unit: Measurem
     HStack {
         Text(title).font(.system(size: 11)).frame(width: 62, alignment: .leading)
         TextField(title, value: value, format: LengthFormat(unit: unit))
+            .id(unit)
             .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing)
             .font(.system(size: 12, design: .monospaced)).accessibilityLabel("\(title) in \(unit.rawValue)")
             .help(unitInputHint(unit))

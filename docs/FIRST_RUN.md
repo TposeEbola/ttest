@@ -13,10 +13,19 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 ## First things to try
 
 - Choose **Draw → Select** and click a wall to inspect it.
+- Choose **Pan** to drag the canvas around. With **Select**, drag a wall or opening to move that item; dragging empty space does not pan.
+- Pinch on a trackpad, or scroll vertically over the canvas, to zoom around the pointer. Use the toolbar's Fit button to bring the drawing back into view.
 - Choose **Rotate selection…** to use the circular angle control. Apply keeps the rotation; Cancel discards the preview.
+- Select a door to rotate its swing, or use **Flip left / right** and **Flip in / out** while keeping its opening attached to the wall.
 - Use **Shift-click** to select more than one wall, **Command-C** to copy, and **Command-V** to paste. **Shift-Command-V** pastes in place.
 - In **Floors & Layers**, use **+** to add a floor. The eye, lock, and opacity controls affect the chosen floor.
+- Expand a floor with its disclosure arrow, then click a wall in the list to inspect it.
+- Choose **Measure** and click the inside faces of two walls to add a room-clearance measurement. These saved annotations stay at their placed endpoints when walls move.
+- Choose **Area** and click around a room's inside boundary or a building's outside boundary. With at least three corners, click the first point or press Return to close the outline and see square footage. Escape cancels an unfinished trace.
+- Find a saved area's name and value under its floor in **Floors & Layers**. Select it to rename or delete it. Area outlines stay where you traced them when walls move.
 - Click **Settings** to switch feet/inches to millimetres.
+- Wall inspector fields follow that setting: a 20-foot length shows `20' 0"`, or `6096` in millimetres.
+- Area values follow the same unit setting: square feet by default, or square metres in metric mode.
 
 ## If it does not start
 
@@ -25,7 +34,7 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 - If a build fails, open the **Issue navigator** with **Command-5**, expand the first red error, and copy its exact message. Include the Xcode version (**Xcode → About Xcode**) and macOS version when asking for help.
 - You can stop the running app using Xcode's square **Stop** button. Run it again with **Command-R**.
 
-The core geometry and file tests pass on Linux. Native macOS compilation and interaction checks have not yet been run in the cloud workspace; an Xcode build error needs investigation rather than a signing subscription.
+Core geometry and file tests are exercised on Linux. The newest panning, dragging, door-rotation, floor outline, distance-measurement, and area-tracing interactions still need a native macOS check; an Xcode build error needs investigation rather than a signing subscription.
 
 ## Build a standalone app later
 

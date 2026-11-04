@@ -13,7 +13,7 @@ struct RotationControls: View {
             else { Label("Rotate selection…", systemImage: "rotate.right") }
         }
         .disabled(!store.canRotateSelection)
-        .help("Rotate selected walls and their attached openings")
+        .help(store.selectedOpening?.kind == .door ? "Rotate the door around its hinge" : "Rotate selected walls and their attached openings")
         .popover(isPresented: $isPresented, arrowEdge: .leading) {
             RotationPopover(store: store) { isPresented = false }
         }
@@ -52,7 +52,9 @@ private struct RotationPopover: View {
                 Text("Drag the circle or enter an exact angle.")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            Text("Selected walls rotate together. Doors and windows follow their walls; unselected walls stay in place.")
+            Text(store.selectedOpening?.kind == .door
+                 ? "Rotate the door around its hinge. Its opening stays in the wall."
+                 : "Selected walls rotate together. Doors and windows follow their walls; unselected walls stay in place.")
                 .font(.system(size: 10)).foregroundStyle(.secondary).multilineTextAlignment(.center)
             HStack {
                 Button("Cancel") { store.cancelRotation(); dismiss() }.keyboardShortcut(.cancelAction)

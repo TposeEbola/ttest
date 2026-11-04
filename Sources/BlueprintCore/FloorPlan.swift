@@ -55,10 +55,15 @@ public struct Opening: Identifiable, Codable, Equatable, Sendable {
     public var offset: Double
     public var width: Double
     public var height: Double
+    /// The leaf's signed rotation from its closed position along the wall.
+    /// Positive and negative angles place the swing on opposite wall faces.
+    public var doorSwingDegrees: Double
+    public var hingeAtEnd: Bool
 
     public init(
         id: UUID = UUID(), wallID: UUID, kind: OpeningKind,
-        offset: Double, width: Double, height: Double
+        offset: Double, width: Double, height: Double,
+        doorSwingDegrees: Double = 90, hingeAtEnd: Bool = false
     ) {
         self.id = id
         self.wallID = wallID
@@ -66,6 +71,24 @@ public struct Opening: Identifiable, Codable, Equatable, Sendable {
         self.offset = offset
         self.width = width
         self.height = height
+        self.doorSwingDegrees = doorSwingDegrees
+        self.hingeAtEnd = hingeAtEnd
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, wallID, kind, offset, width, height, doorSwingDegrees, hingeAtEnd
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        wallID = try values.decode(UUID.self, forKey: .wallID)
+        kind = try values.decode(OpeningKind.self, forKey: .kind)
+        offset = try values.decode(Double.self, forKey: .offset)
+        width = try values.decode(Double.self, forKey: .width)
+        height = try values.decode(Double.self, forKey: .height)
+        doorSwingDegrees = try values.decodeIfPresent(Double.self, forKey: .doorSwingDegrees) ?? 90
+        hingeAtEnd = try values.decodeIfPresent(Bool.self, forKey: .hingeAtEnd) ?? false
     }
 }
 
@@ -79,6 +102,10 @@ public enum PlanError: LocalizedError, Equatable {
     case invalidOpeningDimensions
     case openingOutsideWall
     case overlappingOpenings
+    case invalidDimensionLength
+    case missingDimension
+    case invalidDoorAngle
+    case notADoor
 
     public var errorDescription: String? {
         switch self {
@@ -100,6 +127,14 @@ public enum PlanError: LocalizedError, Equatable {
             return "The door or window must fit entirely within its wall."
         case .overlappingOpenings:
             return "Doors and windows on the same wall cannot overlap."
+        case .invalidDimensionLength:
+            return "Measurement lines must be at least 1 mm long and no longer than 10 km."
+        case .missingDimension:
+            return "The selected measurement no longer exists."
+        case .invalidDoorAngle:
+            return "Enter a door swing angle between -180° and 180°."
+        case .notADoor:
+            return "Select a door to change its swing or hinge."
         }
     }
 }
@@ -107,12 +142,29 @@ public enum PlanError: LocalizedError, Equatable {
 public struct FloorPlan: Codable, Equatable, Sendable {
     public var walls: [Wall]
     public var openings: [Opening]
+    public var dimensions: [PlanDimension]
+    public var areas: [PlanArea]
     public var defaultWallThickness: Double
 
-    public init(walls: [Wall] = [], openings: [Opening] = [], defaultWallThickness: Double = 150) {
+    public init(walls: [Wall] = [], openings: [Opening] = [], dimensions: [PlanDimension] = [], areas: [PlanArea] = [], defaultWallThickness: Double = 150) {
         self.walls = walls
         self.openings = openings
+        self.dimensions = dimensions
+        self.areas = areas
         self.defaultWallThickness = defaultWallThickness
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case walls, openings, dimensions, areas, defaultWallThickness
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        walls = try values.decode([Wall].self, forKey: .walls)
+        openings = try values.decode([Opening].self, forKey: .openings)
+        dimensions = try values.decodeIfPresent([PlanDimension].self, forKey: .dimensions) ?? []
+        areas = try values.decodeIfPresent([PlanArea].self, forKey: .areas) ?? []
+        defaultWallThickness = try values.decode(Double.self, forKey: .defaultWallThickness)
     }
 
     public static let empty = FloorPlan()
@@ -143,8 +195,25 @@ public struct FloorPlan: Codable, Equatable, Sendable {
         try Self.validateThickness(defaultWallThickness)
         guard Set(walls.map(\.id)).count == walls.count,
               Set(openings.map(\.id)).count == openings.count,
-              Set(walls.map(\.id)).isDisjoint(with: Set(openings.map(\.id))) else {
+              Set(dimensions.map(\.id)).count == dimensions.count,
+              Set(areas.map(\.id)).count == areas.count,
+              Set(walls.map(\.id)).isDisjoint(with: Set(openings.map(\.id))),
+              Set(dimensions.map(\.id)).isDisjoint(with: Set(walls.map(\.id))),
+              Set(dimensions.map(\.id)).isDisjoint(with: Set(openings.map(\.id))),
+              Set(areas.map(\.id)).isDisjoint(with: Set(walls.map(\.id) + openings.map(\.id) + dimensions.map(\.id))) else {
             throw PlanError.duplicateIdentifier
+        }
+        for area in areas { try area.validate() }
+        for dimension in dimensions {
+            for point in [dimension.start, dimension.end] {
+                guard point.x.isFinite, point.y.isFinite,
+                      abs(point.x) <= 10_000_000, abs(point.y) <= 10_000_000 else {
+                    throw PlanError.invalidCoordinate
+                }
+            }
+            guard dimension.length.isFinite, (1...10_000_000).contains(dimension.length) else {
+                throw PlanError.invalidDimensionLength
+            }
         }
         for wall in walls {
             for point in [wall.start, wall.end] {
@@ -161,6 +230,9 @@ public struct FloorPlan: Codable, Equatable, Sendable {
         let wallByID = Dictionary(uniqueKeysWithValues: walls.map { ($0.id, $0) })
         for opening in openings {
             guard let wall = wallByID[opening.wallID] else { throw PlanError.missingWall }
+            guard opening.doorSwingDegrees.isFinite, (-180...180).contains(opening.doorSwingDegrees) else {
+                throw PlanError.invalidDoorAngle
+            }
             guard opening.width.isFinite, opening.height.isFinite,
                   (1...1_000_000).contains(opening.width),
                   (1...1_000_000).contains(opening.height) else {

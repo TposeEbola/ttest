@@ -7,6 +7,17 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
 
     public var id: String { rawValue }
 
+    /// Room areas use square feet or square metres while geometry remains in mm².
+    public func formatArea(_ squareMillimetres: Double) -> String {
+        guard squareMillimetres.isFinite, squareMillimetres >= 0 else { return "—" }
+        switch self {
+        case .imperial:
+            return Self.decimal(squareMillimetres / (304.8 * 304.8), places: 3) + " sq ft"
+        case .metric:
+            return Self.decimal(squareMillimetres / 1_000_000, places: 3) + " m²"
+        }
+    }
+
     public func format(_ mm: Double) -> String {
         guard mm.isFinite else { return "—" }
         switch self {
@@ -34,7 +45,19 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
         case .metric:
             return Self.decimal(mm, places: 9)
         case .imperial:
-            return Self.decimal(mm / 25.4, places: 9) + "\""
+            let totalInches = abs(mm) / 25.4
+            guard totalInches.isFinite else { return "" }
+            var feet = floor(totalInches / 12)
+            var inches = totalInches - feet * 12
+            // Carry after rounding the editable inch component, rather than
+            // displaying a confusing value such as 0' 12" at a foot boundary.
+            if Self.decimal(inches, places: 9) == "12" {
+                feet += 1
+                inches = 0
+            }
+            let inchText = Self.decimal(inches, places: 9)
+            let sign = mm < 0 && (feet > 0 || inchText != "0") ? "-" : ""
+            return sign + Self.decimal(feet, places: 0) + "' " + inchText + "\""
         }
     }
 

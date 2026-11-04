@@ -5,13 +5,16 @@ import UniformTypeIdentifiers
 import BlueprintCore
 
 enum EditorTool: String, CaseIterable, Identifiable {
-    case select, wall, door, window
+    case select, pan, wall, measure, area, door, window
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     var symbol: String {
         switch self {
         case .select: return "cursorarrow"
+        case .pan: return "hand.draw"
         case .wall: return "line.diagonal"
+        case .measure: return "ruler"
+        case .area: return "square.dashed"
         case .door: return "door.left.hand.open"
         case .window: return "window.casement"
         }
@@ -43,6 +46,8 @@ struct OpeningPreset: Identifiable {
 final class PlanStore: ObservableObject {
     @Published private(set) var document: PlanDocument
     @Published private(set) var selection = PlanSelection()
+    @Published private(set) var selectedDimensionID: UUID?
+    @Published private(set) var selectedAreaID: UUID?
     @Published var tool: EditorTool = .select
     @Published var zoom: Double = 0.08
     @Published var status = "Draw a wall, or select an element to edit its measurements."
@@ -54,6 +59,7 @@ final class PlanStore: ObservableObject {
     @Published private(set) var rotationPreviewPlan: FloorPlan?
     @Published private(set) var rotationPivot: PlanPoint?
     @Published private(set) var rotationGuideDegrees: Double?
+    @Published private(set) var dragPreviewPlan: FloorPlan?
     @Published var unit: DisplayUnit = .imperial {
         didSet { UserDefaults.standard.set(unit.rawValue, forKey: "measurementUnit") }
     }
@@ -68,6 +74,10 @@ final class PlanStore: ObservableObject {
     private var rotationBaseSelection: PlanSelection?
     private var rotationBaseLayerID: UUID?
     private var rotationReferenceAngle: Double = 0
+    private var rotatingDoorID: UUID?
+    private var dragBasePlan: FloorPlan?
+    private var dragBaseSelection: PlanSelection?
+    private var dragBaseLayerID: UUID?
     private let pasteboard: NSPasteboard
     private var lastPasteData: Data?
     private var pasteSequences: [UUID: Int] = [:]
@@ -84,7 +94,7 @@ final class PlanStore: ObservableObject {
     }
 
     var plan: FloorPlan { document.activeLayer.plan }
-    var canvasPlan: FloorPlan { rotationPreviewPlan ?? plan }
+    var canvasPlan: FloorPlan { dragPreviewPlan ?? rotationPreviewPlan ?? plan }
     var activeLayer: FloorLayer { document.activeLayer }
     var visibleLayers: [FloorLayer] { document.layers.filter { $0.isVisible && $0.opacity > 0 } }
     var canEditActiveLayer: Bool { activeLayer.isVisible && !activeLayer.isLocked }
@@ -95,6 +105,8 @@ final class PlanStore: ObservableObject {
     var name: String { fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled Plan" }
     var selectedWall: Wall? { plan.walls.first { $0.id == selectedWallID } }
     var selectedOpening: Opening? { plan.openings.first { $0.id == selectedOpeningID } }
+    var selectedDimension: PlanDimension? { plan.dimensions.first { $0.id == selectedDimensionID } }
+    var selectedArea: PlanArea? { plan.areas.first { $0.id == selectedAreaID } }
     var selectedWallID: UUID? {
         selection.wallIDs.count == 1 && selection.openingIDs.isEmpty ? selection.wallIDs.first : nil
     }
@@ -105,17 +117,22 @@ final class PlanStore: ObservableObject {
     var canPasteSelection: Bool {
         canEditActiveLayer && pasteboard.availableType(from: [Self.selectionPasteboardType]) != nil
     }
-    var canRotateSelection: Bool { !selection.wallIDs.isEmpty && canEditActiveLayer }
+    var canRotateSelection: Bool {
+        canEditActiveLayer && (!selection.wallIDs.isEmpty || selectedOpening?.kind == .door)
+    }
     var rotationPreviewActive: Bool { rotationBasePlan != nil }
+    var dragPreviewActive: Bool { dragBasePlan != nil }
 
     func report(_ message: String) { status = message }
     func selectWall(_ id: UUID?, extending: Bool = false) {
-        guard canEditActiveLayer else { clearSelection(); return }
+        guard allowSelection() else { return }
         guard let id, plan.walls.contains(where: { $0.id == id }) else {
             if !extending { clearSelection() }
             return
         }
-        cancelRotation()
+        cancelPreviews()
+        selectedDimensionID = nil
+        selectedAreaID = nil
         if extending {
             var next = selection
             if next.wallIDs.contains(id) { next.wallIDs.remove(id) }
@@ -124,12 +141,14 @@ final class PlanStore: ObservableObject {
         } else { selection = PlanSelection(wallIDs: [id]) }
     }
     func selectOpening(_ id: UUID?, extending: Bool = false) {
-        guard canEditActiveLayer else { clearSelection(); return }
+        guard allowSelection() else { return }
         guard let id, plan.openings.contains(where: { $0.id == id }) else {
             if !extending { clearSelection() }
             return
         }
-        cancelRotation()
+        cancelPreviews()
+        selectedDimensionID = nil
+        selectedAreaID = nil
         if extending {
             var next = selection
             if next.openingIDs.contains(id) { next.openingIDs.remove(id) }
@@ -143,8 +162,28 @@ final class PlanStore: ObservableObject {
             return
         }
         guard canEditActiveLayer else { clearSelection(); return }
-        cancelRotation()
+        cancelPreviews()
+        selectedDimensionID = nil
+        selectedAreaID = nil
         selection = PlanSelection(wallIDs: Set(plan.walls.map(\.id)))
+    }
+    private func allowSelection() -> Bool {
+        guard canEditActiveLayer else {
+            clearSelection()
+            report(activeLayer.isLocked ? PlanDocumentError.lockedLayer.localizedDescription : PlanDocumentError.hiddenLayer.localizedDescription)
+            return false
+        }
+        return true
+    }
+    func selectDimension(_ id: UUID?) {
+        guard allowSelection() else { return }
+        clearSelection()
+        if let id, plan.dimensions.contains(where: { $0.id == id }) { selectedDimensionID = id }
+    }
+    func selectArea(_ id: UUID?) {
+        guard allowSelection() else { return }
+        clearSelection()
+        if let id, plan.areas.contains(where: { $0.id == id }) { selectedAreaID = id }
     }
     @discardableResult
     func change(_ message: String, _ edit: (inout FloorPlan) throws -> Void) -> Bool {
@@ -158,7 +197,7 @@ final class PlanStore: ObservableObject {
     @discardableResult
     private func changeDocument(_ message: String, _ edit: (inout PlanDocument) throws -> Void) -> Bool {
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         do {
             var next = document
             try edit(&next)
@@ -176,6 +215,8 @@ final class PlanStore: ObservableObject {
         change("Wall added. Click the next corner to continue; press Escape to finish.") {
             let id = try $0.addWall(from: from, to: to, thickness: $0.defaultWallThickness)
             selection = PlanSelection(wallIDs: [id])
+            selectedDimensionID = nil
+            selectedAreaID = nil
         }
     }
     func placeOpening(on wallID: UUID, at offset: Double) {
@@ -183,6 +224,8 @@ final class PlanStore: ObservableObject {
         change("\(kind.rawValue.capitalized) added. Select it to adjust its position or size.") {
             let id = try $0.addOpening(wallID: wallID, kind: kind, offset: offset, width: openingWidth, height: openingHeight)
             selection = PlanSelection(openingIDs: [id])
+            selectedDimensionID = nil
+            selectedAreaID = nil
         }
     }
     func updateWall(id: UUID, start: PlanPoint, end: PlanPoint, thickness: Double) {
@@ -193,10 +236,43 @@ final class PlanStore: ObservableObject {
     func updateOpening(id: UUID, offset: Double, width: Double, height: Double) {
         change("Opening updated.") { try $0.updateOpening(id: id, offset: offset, width: width, height: height) }
     }
+    func updateDoor(id: UUID, swingDegrees: Double, hingeAtEnd: Bool) {
+        change("Door orientation updated.") { try $0.updateDoor(id: id, swingDegrees: swingDegrees, hingeAtEnd: hingeAtEnd) }
+    }
+    func commitDimension(from: PlanPoint, to: PlanPoint) {
+        change("Measurement added between the chosen points. It is saved with this floor.") {
+            let id = try $0.addDimension(from: from, to: to)
+            selection = PlanSelection()
+            selectedDimensionID = id
+            selectedAreaID = nil
+        }
+    }
+    func updateDimension(id: UUID, start: PlanPoint, end: PlanPoint) {
+        change("Measurement updated.") { try $0.updateDimension(id: id, start: start, end: end) }
+    }
+    func commitArea(vertices: [PlanPoint]) {
+        change("Closed area saved. Its square footage appears in the floor list.") {
+            let id = try $0.addArea(vertices: vertices)
+            selection = PlanSelection()
+            selectedDimensionID = nil
+            selectedAreaID = id
+        }
+    }
+    func updateArea(id: UUID, name: String, vertices: [PlanPoint]) {
+        change("Area updated.") { try $0.updateArea(id: id, name: name, vertices: vertices) }
+    }
     func setDefaultThickness(_ thickness: Double) {
         change("Default wall thickness updated.") { $0.defaultWallThickness = thickness }
     }
     func deleteSelection() {
+        if let id = selectedAreaID {
+            if change("Area deleted.", { $0.removeArea(id: id) }) { clearSelection() }
+            return
+        }
+        if let id = selectedDimensionID {
+            if change("Measurement deleted.", { $0.removeDimension(id: id) }) { clearSelection() }
+            return
+        }
         guard !selection.isEmpty else { return }
         let targets = selection
         if change("Selection deleted. Use Undo to restore it.", {
@@ -223,8 +299,51 @@ final class PlanStore: ObservableObject {
         undoStack.append(document); document = next; clearSelection(); status = "Redone."
     }
     func clearSelection() {
-        cancelRotation()
+        cancelPreviews()
         selection = PlanSelection()
+        selectedDimensionID = nil
+        selectedAreaID = nil
+    }
+    private func cancelPreviews() {
+        cancelRotation()
+        cancelSelectionDrag()
+    }
+
+    func beginSelectionDrag() {
+        guard canEditActiveLayer, !selection.isEmpty else { return }
+        endLayerOpacityEdit()
+        cancelPreviews()
+        dragBasePlan = plan
+        dragBaseSelection = selection
+        dragBaseLayerID = activeLayer.id
+        dragPreviewPlan = plan
+    }
+    func previewSelectionDrag(by delta: PlanPoint, targetWallID: UUID? = nil) {
+        guard let original = dragBasePlan, let targets = dragBaseSelection,
+              dragBaseLayerID == activeLayer.id, canEditActiveLayer else { return }
+        do {
+            var preview = original
+            try preview.translateSelection(targets, by: delta, targetWallID: targetWallID)
+            dragPreviewPlan = preview
+        } catch {
+            dragPreviewPlan = nil
+            report(error.localizedDescription)
+        }
+    }
+    func commitSelectionDrag() {
+        guard dragBaseLayerID == activeLayer.id, canEditActiveLayer,
+              dragBasePlan != nil, let preview = dragPreviewPlan else {
+            cancelSelectionDrag()
+            return
+        }
+        cancelSelectionDrag()
+        change("Selection moved. Use Undo to restore its previous position.") { $0 = preview }
+    }
+    func cancelSelectionDrag() {
+        dragBasePlan = nil
+        dragBaseSelection = nil
+        dragBaseLayerID = nil
+        dragPreviewPlan = nil
     }
     func copySelection() {
         if let textView = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, textView.isFieldEditor {
@@ -274,6 +393,8 @@ final class PlanStore: ObservableObject {
             let offset = inPlace || changingHost ? PlanPoint(x: 0, y: 0) : PlanPoint(x: distance, y: distance)
             let succeeded = change(inPlace ? "Selection pasted in place with independent walls and openings." : "Selection pasted with independent walls and openings.") {
                 selection = try $0.paste(copied, offset: offset, targetWallID: target)
+                selectedDimensionID = nil
+                selectedAreaID = nil
             }
             if succeeded && !inPlace {
                 if lastPasteData != data { pasteSequences.removeAll() }
@@ -287,19 +408,31 @@ final class PlanStore: ObservableObject {
         guard canRotateSelection else {
             if !canEditActiveLayer {
                 report(activeLayer.isLocked ? PlanDocumentError.lockedLayer.localizedDescription : PlanDocumentError.hiddenLayer.localizedDescription)
-            } else { report("Select a wall or a group of walls to rotate. Openings rotate with their host wall.") }
+            } else { report("Select a wall, a group, or a door to rotate. Windows follow their host wall.") }
             return
         }
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         let pivot: PlanPoint
-        do { pivot = try plan.selectionCenter(selection) }
+        let door = selectedOpening?.kind == .door ? selectedOpening : nil
+        do {
+            if let door, let host = plan.walls.first(where: { $0.id == door.wallID }) {
+                let distance = door.offset + (door.hingeAtEnd ? 1 : -1) * door.width / 2
+                let jamb = host.point(at: distance)
+                pivot = PlanPoint(x: jamb.x - host.direction.y * host.thickness / 2,
+                                  y: jamb.y + host.direction.x * host.thickness / 2)
+            } else { pivot = try plan.selectionCenter(selection) }
+        }
         catch { report(error.localizedDescription); return }
         rotationBasePlan = plan
         rotationBaseSelection = selection
         rotationBaseLayerID = activeLayer.id
         rotationPivot = pivot
-        if let reference = plan.walls.first(where: { selection.wallIDs.contains($0.id) }) {
+        rotatingDoorID = door?.id
+        if let door, let host = plan.walls.first(where: { $0.id == door.wallID }) {
+            rotationReferenceAngle = atan2(host.end.y - host.start.y, host.end.x - host.start.x) * 180 / .pi
+                + (door.hingeAtEnd ? 180 : 0) + door.doorSwingDegrees
+        } else if let reference = plan.walls.first(where: { selection.wallIDs.contains($0.id) }) {
             rotationReferenceAngle = atan2(reference.end.y - reference.start.y, reference.end.x - reference.start.x) * 180 / .pi
         }
         rotationDegrees = 0
@@ -330,7 +463,12 @@ final class PlanStore: ObservableObject {
         rotationDegrees = adjusted
         do {
             var preview = original
-            try preview.rotateSelection(targets, byDegrees: adjusted, around: pivot)
+            if let doorID = rotatingDoorID, let door = original.openings.first(where: { $0.id == doorID }) {
+                var swing = (door.doorSwingDegrees + adjusted).truncatingRemainder(dividingBy: 360)
+                if swing > 180 { swing -= 360 }
+                if swing < -180 { swing += 360 }
+                try preview.updateDoor(id: doorID, swingDegrees: swing, hingeAtEnd: door.hingeAtEnd)
+            } else { try preview.rotateSelection(targets, byDegrees: adjusted, around: pivot) }
             rotationPreviewPlan = preview
             report("Rotation preview: \(adjusted.formatted(.number.precision(.fractionLength(0...2))))°. Apply to keep it, or cancel.")
         } catch {
@@ -358,9 +496,10 @@ final class PlanStore: ObservableObject {
         rotationGuideDegrees = nil
         rotationDegrees = 0
         rotationReferenceAngle = 0
+        rotatingDoorID = nil
     }
     func chooseTool(_ value: EditorTool) {
-        cancelRotation()
+        cancelPreviews()
         tool = value
         if value == .door { applyPreset(OpeningPreset.doors[0]) }
         if value == .window { applyPreset(OpeningPreset.windows[0]) }
@@ -368,7 +507,7 @@ final class PlanStore: ObservableObject {
     func applyPreset(_ preset: OpeningPreset) { openingWidth = preset.width; openingHeight = preset.height }
     func selectLayer(id: UUID) {
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         do {
             var next = document
             try next.setActiveLayer(id: id)
@@ -404,7 +543,7 @@ final class PlanStore: ObservableObject {
     }
     func beginLayerOpacityEdit() {
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         opacityEditStart = document
     }
     func setLayerOpacity(id: UUID, opacity: Double) {
@@ -430,7 +569,7 @@ final class PlanStore: ObservableObject {
 
     private func confirmDiscard() -> Bool {
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         guard isDirty else { return true }
         let alert = NSAlert()
         alert.messageText = "Save changes to \(name)?"
@@ -484,7 +623,7 @@ final class PlanStore: ObservableObject {
     }
     private func write(to url: URL) {
         endLayerOpacityEdit()
-        cancelRotation()
+        cancelPreviews()
         do {
             try document.validate()
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -493,7 +632,7 @@ final class PlanStore: ObservableObject {
         } catch { status = "Could not save plan: \(error.localizedDescription)" }
     }
     func exportSVG() {
-        cancelRotation()
+        cancelPreviews()
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.svg]
         panel.title = "Export Active Floor SVG"

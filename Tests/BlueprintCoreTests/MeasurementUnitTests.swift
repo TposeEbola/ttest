@@ -54,4 +54,39 @@ final class MeasurementUnitTests: XCTestCase {
             XCTAssertEqual(value, original, accuracy: 0.000_001)
         }
     }
+
+    func testEditableImperialValuesShowBothFeetAndInches() throws {
+        let cases: [(Double, String)] = [
+            (6096, "20' 0\""),
+            (3810, "12' 6\""),
+            (-685.8, "-2' 3\""),
+            (152.4, "0' 6\""),
+            (0, "0' 0\""),
+            (11.9999999999 * 25.4, "1' 0\"")
+        ]
+        for (millimetres, expected) in cases {
+            let text = MeasurementUnit.imperial.inputString(millimetres)
+            XCTAssertEqual(text, expected)
+            XCTAssertEqual(try MeasurementUnit.imperial.parse(text), millimetres, accuracy: 0.000_001)
+        }
+        XCTAssertEqual(MeasurementUnit.metric.inputString(6096), "6096")
+        XCTAssertEqual(MeasurementUnit.metric.inputString(114.3), "114.3")
+    }
+
+    func testAreaFormattingUsesPhysicalSquareUnits() {
+        // A 20 ft × 15 ft centreline room with 6-inch walls has a
+        // 19.5 ft × 14.5 ft interior: 282.75 square feet.
+        let interiorArea = (19.5 * 304.8) * (14.5 * 304.8)
+        XCTAssertEqual(MeasurementUnit.imperial.formatArea(interiorArea), "282.75 sq ft")
+        XCTAssertEqual(MeasurementUnit.metric.formatArea(interiorArea), "26.268 m²")
+        XCTAssertEqual(MeasurementUnit.imperial.formatArea(304.8 * 304.8), "1 sq ft")
+        XCTAssertEqual(MeasurementUnit.metric.formatArea(1_000_000), "1 m²")
+        XCTAssertEqual(MeasurementUnit.imperial.formatArea(1_000_000), "10.764 sq ft")
+        XCTAssertEqual(MeasurementUnit.imperial.formatArea(0), "0 sq ft")
+        XCTAssertEqual(MeasurementUnit.metric.formatArea(0), "0 m²")
+        for invalid in [-1.0, .nan, .infinity, -.infinity] {
+            XCTAssertEqual(MeasurementUnit.imperial.formatArea(invalid), "—")
+            XCTAssertEqual(MeasurementUnit.metric.formatArea(invalid), "—")
+        }
+    }
 }

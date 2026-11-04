@@ -1,11 +1,13 @@
 #if os(macOS)
 import SwiftUI
 import BlueprintCore
+import AppKit
 
 /// Floors share one drawing origin, while each keeps its own editable geometry.
 @MainActor
 struct LayerPanel: View {
     @ObservedObject var store: PlanStore
+    @State private var expandedFloorIDs: Set<UUID> = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -27,12 +29,17 @@ struct LayerPanel: View {
             ScrollView {
                 LazyVStack(spacing: 5) {
                     ForEach(Array(store.document.layers.reversed())) { layer in
-                        FloorLayerRow(store: store, layer: layer)
+                        VStack(spacing: 0) {
+                            FloorLayerRow(store: store, layer: layer, isExpanded: expansionBinding(for: layer.id))
+                            if expandedFloorIDs.contains(layer.id) {
+                                floorContents(layer)
+                            }
+                        }
                     }
                 }
                 .padding(8)
             }
-            .frame(minHeight: 80, maxHeight: 144)
+            .frame(minHeight: 80, idealHeight: 165, maxHeight: .infinity)
 
             Divider()
             HStack(spacing: 14) {
@@ -94,6 +101,114 @@ struct LayerPanel: View {
         .buttonStyle(.borderless)
         .tint(.black)
         .background(.white)
+        .onAppear { expandedFloorIDs.insert(store.activeLayer.id) }
+        .onChange(of: store.activeLayer.id) { _, id in expandedFloorIDs.insert(id) }
+    }
+
+    private func expansionBinding(for id: UUID) -> Binding<Bool> {
+        Binding(get: { expandedFloorIDs.contains(id) }, set: { expanded in
+            if expanded { expandedFloorIDs.insert(id) }
+            else { expandedFloorIDs.remove(id) }
+        })
+    }
+
+    @ViewBuilder
+    private func floorContents(_ layer: FloorLayer) -> some View {
+        VStack(spacing: 1) {
+            if layer.plan.walls.isEmpty && layer.plan.dimensions.isEmpty && layer.plan.areas.isEmpty {
+                Text("No items yet").font(.system(size: 10)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 30).padding(.vertical, 8)
+            }
+            ForEach(Array(layer.plan.walls.enumerated()), id: \.element.id) { index, wall in
+                Button {
+                    prepareSelection(in: layer)
+                    store.selectWall(wall.id, extending: NSEvent.modifierFlags.contains(.shift))
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.diagonal").frame(width: 13)
+                        Text("Wall \(index + 1)")
+                        Spacer(minLength: 4)
+                        Text(store.unit.format(wall.length)).font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .font(.system(size: 10)).padding(.vertical, 6).padding(.leading, 29).padding(.trailing, 9)
+                    .frame(maxWidth: .infinity)
+                    .background(isSelected(wall: wall.id, in: layer) ? Color.black.opacity(0.08) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Select Wall \(index + 1) on \(layer.name); Shift-click to extend the selection")
+                .accessibilityLabel("Wall \(index + 1), \(store.unit.format(wall.length)), \(layer.name)")
+
+                ForEach(layer.plan.openings.filter { $0.wallID == wall.id }) { opening in
+                    Button {
+                        prepareSelection(in: layer)
+                        store.selectOpening(opening.id, extending: NSEvent.modifierFlags.contains(.shift))
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: opening.kind == .door ? "door.left.hand.open" : "window.casement").frame(width: 13)
+                            Text(opening.kind.rawValue.capitalized)
+                            Spacer(minLength: 4)
+                            Text(store.unit.format(opening.width)).font(.system(size: 9, design: .monospaced))
+                                .foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        .font(.system(size: 9)).padding(.vertical, 5).padding(.leading, 44).padding(.trailing, 9)
+                        .background(store.activeLayer.id == layer.id && store.selection.openingIDs.contains(opening.id) ? Color.black.opacity(0.08) : .clear)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Select this \(opening.kind.rawValue) on Wall \(index + 1)")
+                }
+            }
+            ForEach(Array(layer.plan.dimensions.enumerated()), id: \.element.id) { index, dimension in
+                Button {
+                    prepareSelection(in: layer)
+                    store.selectDimension(dimension.id)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "ruler").frame(width: 13)
+                        Text("Measure \(index + 1)")
+                        Spacer(minLength: 4)
+                        Text(store.unit.format(dimension.length)).font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .font(.system(size: 10)).padding(.vertical, 6).padding(.leading, 29).padding(.trailing, 9)
+                    .background(store.activeLayer.id == layer.id && store.selectedDimensionID == dimension.id ? Color.black.opacity(0.08) : .clear)
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+            }
+            ForEach(layer.plan.areas) { area in
+                Button {
+                    prepareSelection(in: layer)
+                    store.selectArea(area.id)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.dashed").frame(width: 13)
+                        Text(area.name).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(store.unit.formatArea(area.areaSquareMillimetres))
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .font(.system(size: 10)).padding(.vertical, 6).padding(.leading, 29).padding(.trailing, 9)
+                    .background(store.activeLayer.id == layer.id && store.selectedAreaID == area.id ? Color.black.opacity(0.08) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Select \(area.name) on \(layer.name)")
+                .accessibilityLabel("\(area.name), \(store.unit.formatArea(area.areaSquareMillimetres)), \(layer.name)")
+            }
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func prepareSelection(in layer: FloorLayer) {
+        if store.activeLayer.id != layer.id { store.selectLayer(id: layer.id) }
+        store.chooseTool(.select)
+    }
+
+    private func isSelected(wall id: UUID, in layer: FloorLayer) -> Bool {
+        store.activeLayer.id == layer.id && store.selection.wallIDs.contains(id)
     }
 
     private var stateSymbol: String {
@@ -113,13 +228,15 @@ struct LayerPanel: View {
 private struct FloorLayerRow: View {
     @ObservedObject var store: PlanStore
     let layer: FloorLayer
+    @Binding var isExpanded: Bool
     @State private var draftName: String
     @State private var isRenaming = false
     @FocusState private var isNameFocused: Bool
 
-    init(store: PlanStore, layer: FloorLayer) {
+    init(store: PlanStore, layer: FloorLayer, isExpanded: Binding<Bool>) {
         self.store = store
         self.layer = layer
+        _isExpanded = isExpanded
         _draftName = State(initialValue: layer.name)
     }
 
@@ -127,7 +244,13 @@ private struct FloorLayerRow: View {
     private var index: Int { store.document.layers.firstIndex { $0.id == layer.id } ?? 0 }
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 5) {
+            Button { isExpanded.toggle() } label: {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold)).frame(width: 12, height: 28)
+            }
+            .help(isExpanded ? "Collapse \(layer.name)" : "Show walls in \(layer.name)")
+            .accessibilityLabel(isExpanded ? "Collapse \(layer.name)" : "Expand \(layer.name)")
             Button { store.selectLayer(id: layer.id) } label: {
                 ZStack {
                     Rectangle().fill(.white)
@@ -135,7 +258,7 @@ private struct FloorLayerRow: View {
                     Image(systemName: "square.split.bottomrightquarter")
                         .font(.system(size: 17, weight: .light))
                 }
-                .frame(width: 28, height: 28)
+                .frame(width: 23, height: 28)
             }
             .accessibilityLabel("Select \(layer.name)")
 
