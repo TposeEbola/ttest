@@ -115,7 +115,7 @@ struct LayerPanel: View {
     @ViewBuilder
     private func floorContents(_ layer: FloorLayer) -> some View {
         VStack(spacing: 1) {
-            if layer.plan.walls.isEmpty && layer.plan.dimensions.isEmpty && layer.plan.areas.isEmpty {
+            if layer.plan.walls.isEmpty && layer.plan.items.isEmpty && layer.plan.dimensions.isEmpty && layer.plan.areas.isEmpty {
                 Text("No items yet").font(.system(size: 10)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 30).padding(.vertical, 8)
             }
@@ -159,6 +159,27 @@ struct LayerPanel: View {
                     .buttonStyle(.plain)
                     .help("Select this \(opening.kind.rawValue) on Wall \(index + 1)")
                 }
+            }
+            ForEach(layer.plan.items) { item in
+                Button {
+                    prepareSelection(in: layer)
+                    store.selectItem(item.id, extending: NSEvent.modifierFlags.contains(.shift))
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: objectCategorySymbol(item.kind.category)).frame(width: 13)
+                        Text(item.name).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(itemDimensions(item))
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .font(.system(size: 10)).padding(.vertical, 6).padding(.leading, 29).padding(.trailing, 9)
+                    .background(store.activeLayer.id == layer.id && store.selection.itemIDs.contains(item.id) ? Color.black.opacity(0.08) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Select \(item.name) on \(layer.name); Shift-click to extend the selection")
+                .accessibilityLabel("\(item.name), \(itemDimensions(item)), \(layer.name)")
             }
             ForEach(Array(layer.plan.dimensions.enumerated()), id: \.element.id) { index, dimension in
                 Button {
@@ -207,6 +228,12 @@ struct LayerPanel: View {
         store.chooseTool(.select)
     }
 
+    private func itemDimensions(_ item: PlanItem) -> String {
+        if item.isCircular { return "Ø \(store.unit.format(item.width))" }
+        if item.kind == .line { return store.unit.format(item.width) }
+        return "\(store.unit.format(item.width)) × \(store.unit.format(item.depth))"
+    }
+
     private func isSelected(wall id: UUID, in layer: FloorLayer) -> Bool {
         store.activeLayer.id == layer.id && store.selection.wallIDs.contains(id)
     }
@@ -249,7 +276,7 @@ private struct FloorLayerRow: View {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 9, weight: .semibold)).frame(width: 12, height: 28)
             }
-            .help(isExpanded ? "Collapse \(layer.name)" : "Show walls in \(layer.name)")
+            .help(isExpanded ? "Collapse \(layer.name)" : "Show items in \(layer.name)")
             .accessibilityLabel(isExpanded ? "Collapse \(layer.name)" : "Expand \(layer.name)")
             Button { store.selectLayer(id: layer.id) } label: {
                 ZStack {
@@ -283,7 +310,7 @@ private struct FloorLayerRow: View {
                         .onTapGesture(count: 2, perform: beginRename)
                         .help("Click to select; double-click to rename")
                 }
-                Text("\(layer.plan.walls.count) walls · \(Int((layer.opacity * 100).rounded()))%")
+                Text("\(layer.plan.walls.count) walls · \(layer.plan.items.count) objects · \(Int((layer.opacity * 100).rounded()))%")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -303,7 +330,7 @@ private struct FloorLayerRow: View {
                     .font(.system(size: 11))
                     .frame(width: 18, height: 26)
             }
-            .help(layer.isLocked ? "Unlock \(layer.name)" : "Lock \(layer.name) to protect its walls and openings")
+            .help(layer.isLocked ? "Unlock \(layer.name)" : "Lock \(layer.name) to protect its items")
             .accessibilityLabel(layer.isLocked ? "Unlock \(layer.name)" : "Lock \(layer.name)")
         }
         .padding(.horizontal, 8)

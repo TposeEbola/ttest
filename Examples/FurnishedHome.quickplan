@@ -1,0 +1,470 @@
+{
+  "activeLayerID" : "54D069B2-9BFD-44A0-8130-EF2411A7147B",
+  "layers" : [
+    {
+      "id" : "54D069B2-9BFD-44A0-8130-EF2411A7147B",
+      "isLocked" : false,
+      "isVisible" : true,
+      "name" : "Furnished home",
+      "opacity" : 1,
+      "plan" : {
+        "areas" : [
+          {
+            "id" : "1E29DA6C-1F73-47D5-912E-71A3A9484215",
+            "name" : "Bedroom",
+            "vertices" : [
+              {
+                "x" : 100,
+                "y" : 100
+              },
+              {
+                "x" : 3900,
+                "y" : 100
+              },
+              {
+                "x" : 3900,
+                "y" : 4400
+              },
+              {
+                "x" : 100,
+                "y" : 4400
+              }
+            ]
+          }
+        ],
+        "defaultWallThickness" : 200,
+        "dimensions" : [
+          {
+            "end" : {
+              "x" : 3900,
+              "y" : 4100
+            },
+            "id" : "5B244361-F853-4DDE-A6B3-CCA88F6E6D50",
+            "offset" : -350,
+            "start" : {
+              "x" : 100,
+              "y" : 4100
+            }
+          }
+        ],
+        "items" : [
+          {
+            "depth" : 2032,
+            "id" : "6DB3B6BD-49EE-46EE-A2A8-1CF08F10CDF2",
+            "kind" : "bed",
+            "name" : "Queen bed",
+            "position" : {
+              "x" : 1500,
+              "y" : 1200
+            },
+            "rotationDegrees" : 90,
+            "width" : 1524
+          },
+          {
+            "depth" : 457.2,
+            "id" : "265135DB-407E-4884-B20E-CE9CDED79619",
+            "kind" : "nightstand",
+            "name" : "Nightstand",
+            "position" : {
+              "x" : 2850,
+              "y" : 850
+            },
+            "rotationDegrees" : 0,
+            "width" : 508
+          },
+          {
+            "depth" : 762,
+            "id" : "8274A7C8-1DB1-4E18-B635-006DAACFB728",
+            "kind" : "bathtub",
+            "name" : "Bathtub",
+            "position" : {
+              "x" : 1200,
+              "y" : 5500
+            },
+            "rotationDegrees" : 0,
+            "width" : 1524
+          },
+          {
+            "depth" : 762,
+            "id" : "8E82A0A2-87D2-44C1-AA6D-D71FE02D587C",
+            "kind" : "toilet",
+            "name" : "Toilet",
+            "position" : {
+              "x" : 1000,
+              "y" : 7250
+            },
+            "rotationDegrees" : 0,
+            "width" : 508
+          },
+          {
+            "depth" : 508,
+            "id" : "276B2C4E-CB3E-4633-8194-48B5E7F9A0B7",
+            "kind" : "bathSink",
+            "name" : "Bathroom sink",
+            "position" : {
+              "x" : 2700,
+              "y" : 8000
+            },
+            "rotationDegrees" : 0,
+            "width" : 609.6
+          },
+          {
+            "depth" : 635,
+            "id" : "A57E1E6D-620A-4BD9-9403-8CFD4369963C",
+            "kind" : "counter",
+            "name" : "Counter",
+            "position" : {
+              "x" : 9200,
+              "y" : 550
+            },
+            "rotationDegrees" : 0,
+            "width" : 1524
+          },
+          {
+            "depth" : 635,
+            "id" : "E1EAB4F8-8D34-49EE-A20C-CB6833B510CD",
+            "kind" : "stove",
+            "name" : "Stove",
+            "position" : {
+              "x" : 10400,
+              "y" : 550
+            },
+            "rotationDegrees" : 0,
+            "width" : 762
+          },
+          {
+            "depth" : 762,
+            "id" : "C54FCD08-13EF-48CD-AC43-A1B6DCCF11C1",
+            "kind" : "refrigerator",
+            "name" : "Refrigerator",
+            "position" : {
+              "x" : 11400,
+              "y" : 550
+            },
+            "rotationDegrees" : 0,
+            "width" : 914.4
+          },
+          {
+            "depth" : 762,
+            "id" : "5D5ECD0E-7400-4633-8EFB-9D57059A4755",
+            "kind" : "desk",
+            "name" : "Desk",
+            "position" : {
+              "x" : 6000,
+              "y" : 2200
+            },
+            "rotationDegrees" : 0,
+            "width" : 1524
+          },
+          {
+            "depth" : 635,
+            "id" : "7333232A-707D-4A7B-87B1-7882CD42DAAE",
+            "kind" : "officeChair",
+            "name" : "Office chair",
+            "position" : {
+              "x" : 6000,
+              "y" : 3000
+            },
+            "rotationDegrees" : 0,
+            "width" : 635
+          },
+          {
+            "depth" : 914.4,
+            "id" : "97F92C99-AB73-4713-83B4-504A5DF5421F",
+            "kind" : "sofa",
+            "name" : "Sofa",
+            "position" : {
+              "x" : 6200,
+              "y" : 6500
+            },
+            "rotationDegrees" : 0,
+            "width" : 2133.6
+          },
+          {
+            "depth" : 609.6,
+            "id" : "B13376AF-F58A-4E22-BCB8-96D00810D3DB",
+            "kind" : "coffeeTable",
+            "name" : "Coffee table",
+            "position" : {
+              "x" : 6200,
+              "y" : 7700
+            },
+            "rotationDegrees" : 0,
+            "width" : 1219.2
+          },
+          {
+            "depth" : 3048,
+            "id" : "490A54B8-ED37-49BB-9069-78429D4E543A",
+            "kind" : "straightStairs",
+            "name" : "Straight stairs · 36 in",
+            "position" : {
+              "x" : 10800,
+              "y" : 6500
+            },
+            "rotationDegrees" : 0,
+            "width" : 914.4
+          },
+          {
+            "depth" : 304.8,
+            "id" : "58B96456-AA88-4DC7-9307-4C9015939DD0",
+            "kind" : "person",
+            "name" : "Person",
+            "position" : {
+              "x" : 8100,
+              "y" : 3500
+            },
+            "rotationDegrees" : 0,
+            "width" : 508
+          },
+          {
+            "depth" : 457.2,
+            "id" : "AFF9E25F-9381-4230-81A8-BEE600204331",
+            "kind" : "plant",
+            "name" : "Potted plant",
+            "position" : {
+              "x" : 8400,
+              "y" : 7800
+            },
+            "rotationDegrees" : 0,
+            "width" : 457.2
+          },
+          {
+            "depth" : 304.8,
+            "id" : "397119DF-FAC7-4860-9E42-F82B835FAE5D",
+            "kind" : "ceilingLight",
+            "name" : "Ceiling light",
+            "position" : {
+              "x" : 8100,
+              "y" : 2300
+            },
+            "rotationDegrees" : 0,
+            "width" : 304.8
+          }
+        ],
+        "openings" : [
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 2032,
+            "hingeAtEnd" : false,
+            "id" : "D3479CE5-76FE-4F57-BD9E-B7D9C6D87BAB",
+            "kind" : "door",
+            "offset" : 3200,
+            "wallID" : "1E06D61F-7551-4D81-9080-31FC25C101DB",
+            "width" : 914.4
+          },
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 2032,
+            "hingeAtEnd" : false,
+            "id" : "602EB23D-F18A-4D9F-9460-6529B77D17D3",
+            "kind" : "door",
+            "offset" : 6200,
+            "wallID" : "1E06D61F-7551-4D81-9080-31FC25C101DB",
+            "width" : 914.4
+          },
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 2032,
+            "hingeAtEnd" : false,
+            "id" : "2D0E08BE-709F-44B1-89F8-8BD0C70B6C88",
+            "kind" : "door",
+            "offset" : 4100,
+            "wallID" : "1EA032D3-0AB6-46B1-B807-C8971961B348",
+            "width" : 914.4
+          },
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 1219.2,
+            "hingeAtEnd" : false,
+            "id" : "3E2E3E5D-986F-4D92-936E-0ADF110EC3BC",
+            "kind" : "window",
+            "offset" : 6300,
+            "wallID" : "62B40A90-FDEF-44AA-8727-B0AFE7259588",
+            "width" : 1524
+          },
+          {
+            "doorSwingDegrees" : 90,
+            "height" : 1219.2,
+            "hingeAtEnd" : false,
+            "id" : "89CA6925-9552-449F-AD14-9CD79321DB95",
+            "kind" : "window",
+            "offset" : 6500,
+            "wallID" : "0D309A30-2D5C-467F-95DA-FB2E66FBF503",
+            "width" : 1219.2
+          }
+        ],
+        "walls" : [
+          {
+            "end" : {
+              "x" : 12000,
+              "y" : 0
+            },
+            "id" : "62B40A90-FDEF-44AA-8727-B0AFE7259588",
+            "start" : {
+              "x" : 0,
+              "y" : 0
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 12000,
+              "y" : 9000
+            },
+            "id" : "0D309A30-2D5C-467F-95DA-FB2E66FBF503",
+            "start" : {
+              "x" : 12000,
+              "y" : 0
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 0,
+              "y" : 9000
+            },
+            "id" : "B4ABFE47-9633-476A-AFF3-159647B89FBE",
+            "start" : {
+              "x" : 12000,
+              "y" : 9000
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 0,
+              "y" : 0
+            },
+            "id" : "C40B224D-0D21-4A83-9E36-E8717DB8E1DC",
+            "start" : {
+              "x" : 0,
+              "y" : 9000
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 4000,
+              "y" : 9000
+            },
+            "id" : "1E06D61F-7551-4D81-9080-31FC25C101DB",
+            "start" : {
+              "x" : 4000,
+              "y" : 0
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 4000,
+              "y" : 4500
+            },
+            "id" : "F11F9E3D-1F64-4EF7-995A-8E3947253D26",
+            "start" : {
+              "x" : 0,
+              "y" : 4500
+            },
+            "thickness" : 200
+          },
+          {
+            "end" : {
+              "x" : 12000,
+              "y" : 4500
+            },
+            "id" : "1EA032D3-0AB6-46B1-B807-C8971961B348",
+            "start" : {
+              "x" : 4000,
+              "y" : 4500
+            },
+            "thickness" : 200
+          }
+        ]
+      }
+    },
+    {
+      "id" : "E9AFCF96-EF34-4BA9-A42D-959041D88058",
+      "isLocked" : false,
+      "isVisible" : false,
+      "name" : "Shapes",
+      "opacity" : 1,
+      "plan" : {
+        "areas" : [
+
+        ],
+        "defaultWallThickness" : 200,
+        "dimensions" : [
+
+        ],
+        "items" : [
+          {
+            "depth" : 1000,
+            "id" : "74BB3358-99E5-4F0E-B81E-68A301567CE7",
+            "kind" : "rectangle",
+            "name" : "Rectangle",
+            "position" : {
+              "x" : 1500,
+              "y" : 1500
+            },
+            "rotationDegrees" : 0,
+            "width" : 1800
+          },
+          {
+            "depth" : 1200,
+            "id" : "061D2D1F-538F-41D8-85FE-9EF199B099C0",
+            "kind" : "circle",
+            "name" : "Circle",
+            "position" : {
+              "x" : 4500,
+              "y" : 1500
+            },
+            "rotationDegrees" : 0,
+            "width" : 1200
+          },
+          {
+            "depth" : 1000,
+            "id" : "B7880D65-D31E-4B71-A51D-18AACB54823C",
+            "kind" : "ellipse",
+            "name" : "Ellipse",
+            "position" : {
+              "x" : 7500,
+              "y" : 1500
+            },
+            "rotationDegrees" : 0,
+            "width" : 1800
+          },
+          {
+            "depth" : 1400,
+            "id" : "5B9EBBF5-B81F-40B5-B7AA-9DFF509C332F",
+            "kind" : "triangle",
+            "name" : "Triangle",
+            "position" : {
+              "x" : 10000,
+              "y" : 1500
+            },
+            "rotationDegrees" : 0,
+            "width" : 1500
+          },
+          {
+            "depth" : 1,
+            "id" : "4794EDF6-3226-4C24-A394-E81E7E7A5BD6",
+            "kind" : "line",
+            "name" : "Line",
+            "position" : {
+              "x" : 6000,
+              "y" : 4500
+            },
+            "rotationDegrees" : 25,
+            "width" : 2500
+          }
+        ],
+        "openings" : [
+
+        ],
+        "walls" : [
+
+        ]
+      }
+    }
+  ],
+  "version" : 1
+}

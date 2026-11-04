@@ -10,6 +10,7 @@ struct PlanCanvas: View {
     @State private var center = PlanPoint(x: 0, y: 0)
     @State private var pan = CGSize.zero
     @State private var anchor: PlanPoint?
+    @State private var shapeAnchor: PlanPoint?
     @State private var dimensionAnchor: PlanPoint?
     @State private var dimensionEnd: PlanPoint?
     @State private var areaVertices: [PlanPoint] = []
@@ -80,6 +81,7 @@ struct PlanCanvas: View {
                         return .handled
                     }
                     anchor = nil
+                    shapeAnchor = nil
                     dimensionAnchor = nil
                     dimensionEnd = nil
                     areaVertices = []
@@ -98,7 +100,7 @@ struct PlanCanvas: View {
                     return .handled
                 }
                 .accessibilityLabel("Floor plan drawing canvas")
-                .accessibilityHint("Pinch or scroll to zoom. Select and drag walls or openings. Measure uses two clicks for the distance and a third to position its label; Area traces a closed room or footprint.")
+                .accessibilityHint("Pinch or scroll to zoom. Select and drag walls, openings, or objects. Shapes use two clicks and show their size while drawing. Measure uses two clicks for the distance and a third to position its label; Area traces a closed room or footprint.")
 
                 HStack(spacing: 12) {
                     Text(instructions)
@@ -120,18 +122,18 @@ struct PlanCanvas: View {
             .clipped()
             .onAppear { fitCanvas(size: proxy.size) }
             .onChange(of: store.tool) { _, _ in
-                anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
+                anchor = nil; shapeAnchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
                 store.cancelSelectionDrag()
             }
             .onChange(of: store.rotationPreviewActive) { _, active in
-                if active { anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
+                if active { anchor = nil; shapeAnchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
             }
             .onChange(of: store.document.activeLayerID) { _, _ in
-                anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
+                anchor = nil; shapeAnchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
                 store.cancelSelectionDrag()
             }
             .onChange(of: store.canEditActiveLayer) { _, editable in
-                if !editable { anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
+                if !editable { anchor = nil; shapeAnchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
             }
             .onChange(of: store.plan.walls) { _, walls in
                 if let current = anchor, !walls.contains(where: { $0.start == current || $0.end == current }) {
@@ -159,6 +161,13 @@ struct PlanCanvas: View {
         case .wall: return anchor == nil ? "CLICK FIRST WALL POINT · OPTION-DRAG TO PAN" : "CLICK NEXT POINT · ESC ENDS CHAIN"
         case .door: return "CLICK A WALL TO PLACE A DOOR · OPTION-DRAG TO PAN"
         case .window: return "CLICK A WALL TO PLACE A WINDOW · OPTION-DRAG TO PAN"
+        case .object: return store.selectedPreset == nil ? "CHOOSE AN OBJECT IN THE LIBRARY" : "CLICK TO PLACE OBJECT · SET ITS SIZE IN THE LIBRARY"
+        case .rectangle, .ellipse, .triangle:
+            return shapeAnchor == nil ? "CLICK FIRST CORNER · MOVE TO SET WIDTH AND DEPTH" : "CLICK OPPOSITE CORNER TO PLACE · ESC CANCELS"
+        case .circle:
+            return shapeAnchor == nil ? "CLICK CENTRE · MOVE TO SET DIAMETER" : "CLICK CIRCLE EDGE TO PLACE · ESC CANCELS"
+        case .line:
+            return shapeAnchor == nil ? "CLICK FIRST POINT · MOVE TO SET LENGTH" : "CLICK SECOND POINT TO PLACE · ESC CANCELS"
         }
     }
 
@@ -172,6 +181,7 @@ struct PlanCanvas: View {
         }
         pan = .zero
         anchor = nil
+        shapeAnchor = nil
         dimensionAnchor = nil
         dimensionEnd = nil
         areaVertices = []
@@ -204,6 +214,7 @@ struct PlanCanvas: View {
             return plan.walls.flatMap { [$0.start, $0.end] }
                 + plan.dimensions.flatMap { [$0.start, $0.end, $0.lineStart, $0.lineEnd] }
                 + plan.areas.flatMap(\.vertices)
+                + plan.items.flatMap(\.corners)
         }
     }
 
@@ -320,6 +331,42 @@ struct PlanCanvas: View {
         }
     }
 
+    private func itemHit(at point: PlanPoint) -> PlanItem? {
+        let tolerance = 7 / store.zoom
+        return store.canvasPlan.items.reversed().first { item in
+            let angle = item.rotationDegrees * .pi / 180
+            let dx = point.x - item.position.x
+            let dy = point.y - item.position.y
+            let local = PlanPoint(x: dx * cos(angle) + dy * sin(angle),
+                                  y: -dx * sin(angle) + dy * cos(angle))
+            switch item.kind {
+            case .circle, .ellipse:
+                let rx = item.width / 2 + tolerance
+                let ry = item.depth / 2 + tolerance
+                return pow(local.x / rx, 2) + pow(local.y / ry, 2) <= 1
+            case .line:
+                return Geometry.distance(from: local,
+                    to: Wall(start: PlanPoint(x: -item.width / 2, y: 0),
+                             end: PlanPoint(x: item.width / 2, y: 0), thickness: 1)) <= tolerance
+            case .triangle:
+                let vertices = [PlanPoint(x: 0, y: -item.depth / 2),
+                                PlanPoint(x: item.width / 2, y: item.depth / 2),
+                                PlanPoint(x: -item.width / 2, y: item.depth / 2)]
+                var triangle = Path()
+                triangle.move(to: CGPoint(x: vertices[0].x, y: vertices[0].y))
+                for vertex in vertices.dropFirst() { triangle.addLine(to: CGPoint(x: vertex.x, y: vertex.y)) }
+                triangle.closeSubpath()
+                if triangle.contains(CGPoint(x: local.x, y: local.y)) { return true }
+                return vertices.indices.contains { index in
+                    Geometry.distance(from: local,
+                        to: Wall(start: vertices[index], end: vertices[(index + 1) % 3], thickness: 1)) <= tolerance
+                }
+            default:
+                return abs(local.x) <= item.width / 2 + tolerance && abs(local.y) <= item.depth / 2 + tolerance
+            }
+        }
+    }
+
     private func dimensionHit(at point: PlanPoint) -> PlanDimension? {
         store.canvasPlan.dimensions.reversed().first { dimension in
             let segment = Wall(start: dimension.lineStart, end: dimension.lineEnd, thickness: 1)
@@ -392,9 +439,66 @@ struct PlanCanvas: View {
         return result
     }
 
+    private func itemPoint(_ point: PlanPoint) -> PlanPoint {
+        Geometry.snap(point: point, to: [], grid: store.snapToGrid ? snapGrid : 0, tolerance: 0)
+    }
+
+    private func itemDraft(at point: PlanPoint) -> PlanItem? {
+        let endpoint = itemPoint(point)
+        if store.tool == .object {
+            guard let preset = store.selectedPreset else { return nil }
+            let depth = preset.kind == .circle || preset.kind == .spiralStairs
+                ? store.itemWidth : (preset.kind == .line ? 1 : store.itemDepth)
+            guard store.itemWidth.isFinite, depth.isFinite,
+                  store.itemWidth > 0, depth > 0 else { return nil }
+            return validatedItemDraft(PlanItem(name: preset.name, kind: preset.kind, position: endpoint,
+                                              width: store.itemWidth, depth: depth))
+        }
+        guard let start = shapeAnchor else { return nil }
+        let kind: PlanItemKind
+        let position: PlanPoint
+        let width: Double
+        let depth: Double
+        var rotation = 0.0
+        switch store.tool {
+        case .circle:
+            kind = .circle
+            position = start
+            width = start.distance(to: endpoint) * 2
+            depth = width
+        case .line:
+            kind = .line
+            position = PlanPoint(x: (start.x + endpoint.x) / 2, y: (start.y + endpoint.y) / 2)
+            width = start.distance(to: endpoint)
+            depth = 1
+            rotation = atan2(endpoint.y - start.y, endpoint.x - start.x) * 180 / .pi
+        case .rectangle, .ellipse, .triangle:
+            switch store.tool {
+            case .rectangle: kind = .rectangle
+            case .ellipse: kind = .ellipse
+            default: kind = .triangle
+            }
+            position = PlanPoint(x: (start.x + endpoint.x) / 2, y: (start.y + endpoint.y) / 2)
+            width = abs(endpoint.x - start.x)
+            depth = abs(endpoint.y - start.y)
+        default: return nil
+        }
+        guard width.isFinite, depth.isFinite, width > 0, depth > 0 else { return nil }
+        return validatedItemDraft(PlanItem(name: store.tool.title, kind: kind, position: position,
+                                          width: width, depth: depth, rotationDegrees: rotation))
+    }
+
+    private func validatedItemDraft(_ item: PlanItem) -> PlanItem? {
+        do { try item.validate(); return item }
+        catch { return nil }
+    }
+
     private func beginMove(at point: PlanPoint) -> Bool {
         let extending = NSEvent.modifierFlags.contains(.shift)
-        if let opening = openingHit(at: point) {
+        if dimensionHit(at: point) != nil { return false }
+        if let item = itemHit(at: point) {
+            if !store.selection.itemIDs.contains(item.id) { store.selectItem(item.id, extending: extending) }
+        } else if let opening = openingHit(at: point) {
             if !store.selection.openingIDs.contains(opening.id) && !store.selection.wallIDs.contains(opening.wallID) {
                 store.selectOpening(opening.id, extending: extending)
             }
@@ -411,6 +515,10 @@ struct PlanCanvas: View {
             let moved = PlanPoint(x: wall.start.x + delta.x, y: wall.start.y + delta.y)
             let snapped = Geometry.snap(point: moved, to: [], grid: snapGrid, tolerance: 0)
             delta = PlanPoint(x: snapped.x - wall.start.x, y: snapped.y - wall.start.y)
+        } else if store.snapToGrid, let item = store.plan.items.first(where: { store.selection.itemIDs.contains($0.id) }) {
+            let moved = PlanPoint(x: item.position.x + delta.x, y: item.position.y + delta.y)
+            let snapped = itemPoint(moved)
+            delta = PlanPoint(x: snapped.x - item.position.x, y: snapped.y - item.position.y)
         }
         return delta
     }
@@ -438,7 +546,7 @@ struct PlanCanvas: View {
                         let current = world(value.location, size: size)
                         let delta = moveDelta(to: current, from: start)
                         let host: UUID?
-                        if store.selection.wallIDs.isEmpty && store.selection.openingIDs.count == 1 {
+                        if store.selection.wallIDs.isEmpty && store.selection.itemIDs.isEmpty && store.selection.openingIDs.count == 1 {
                             host = store.plan.walls
                                 .filter { Geometry.distance(from: current, to: $0) <= max($0.thickness / 2, 12 / store.zoom) }
                                 .min { Geometry.distance(from: current, to: $0) < Geometry.distance(from: current, to: $1) }?.id
@@ -466,8 +574,10 @@ struct PlanCanvas: View {
         isFocused = true
         guard store.canEditActiveLayer else {
             anchor = nil
+            shapeAnchor = nil
             dimensionAnchor = nil
             dimensionEnd = nil
+            areaVertices = []
             store.report(store.activeLayer.isLocked
                 ? "Unlock this floor in Layers before editing it."
                 : "Show this floor in Layers before editing it.")
@@ -481,12 +591,14 @@ struct PlanCanvas: View {
         case .pan: break
         case .select:
             let extending = NSEvent.modifierFlags.contains(.shift)
-            if let opening = openingHit(at: point) {
+            if let dimension = dimensionHit(at: point) {
+                store.selectDimension(dimension.id)
+            } else if let item = itemHit(at: point) {
+                store.selectItem(item.id, extending: extending)
+            } else if let opening = openingHit(at: point) {
                 store.selectOpening(opening.id, extending: extending)
             } else if let wall = wallHit(at: point) {
                 store.selectWall(wall.id, extending: extending)
-            } else if let dimension = dimensionHit(at: point) {
-                store.selectDimension(dimension.id)
             } else if let area = areaHit(at: point, size: size) {
                 store.selectArea(area.id)
             } else if !extending {
@@ -542,6 +654,25 @@ struct PlanCanvas: View {
                 return
             }
             store.placeOpening(on: wall.id, at: Geometry.projectedDistance(of: point, onto: wall))
+        case .object:
+            store.placeItem(at: itemPoint(point))
+        case .rectangle, .circle, .ellipse, .triangle, .line:
+            guard shapeAnchor != nil else {
+                shapeAnchor = itemPoint(point)
+                cursor = point
+                store.report(store.tool == .circle
+                    ? "Move to set the diameter, then click the circle edge."
+                    : "Move to set the size, then click to finish the shape.")
+                return
+            }
+            guard let draft = itemDraft(at: point) else {
+                store.report("Move farther from the first point to give the shape a size.")
+                return
+            }
+            let before = store.plan.items.count
+            store.commitShape(kind: draft.kind, position: draft.position, width: draft.width,
+                              depth: draft.depth, rotationDegrees: draft.rotationDegrees)
+            if store.plan.items.count > before { shapeAnchor = nil }
         }
     }
 
@@ -613,6 +744,10 @@ struct PlanCanvas: View {
         for opening in plan.openings {
             guard let wall = plan.walls.first(where: { $0.id == opening.wallID }) else { continue }
             drawOpening(opening, wall: wall, showSelection: showSelection, context: &context, size: size)
+        }
+        for item in plan.items {
+            drawItem(item, selected: showSelection && store.selection.itemIDs.contains(item.id),
+                     context: &context, size: size)
         }
         for dimension in plan.dimensions {
             drawRoomDimension(dimension, selected: showSelection && store.selectedDimensionID == dimension.id,
@@ -787,6 +922,88 @@ struct PlanCanvas: View {
         }
     }
 
+    private func drawItem(_ item: PlanItem, selected: Bool, context: inout GraphicsContext,
+                          size: CGSize, preview: Bool = false) {
+        let position = screen(item.position, size: size)
+        let width = item.width * store.zoom
+        let depth = item.depth * store.zoom
+        var local = context
+        local.translateBy(x: position.x, y: position.y)
+        local.rotate(by: .degrees(item.rotationDegrees))
+        let color: Color = preview ? .blue : .black
+        for primitive in ItemSymbols.primitives(for: item.kind) {
+            var path = Path()
+            switch primitive {
+            case .polyline(let points, let closed):
+                for (index, point) in points.enumerated() {
+                    let target = CGPoint(x: point.x * width, y: point.y * depth)
+                    if index == 0 { path.move(to: target) }
+                    else { path.addLine(to: target) }
+                }
+                if closed { path.closeSubpath() }
+            case .ellipse(let center, let ellipseWidth, let ellipseDepth):
+                path.addEllipse(in: CGRect(x: (center.x - ellipseWidth / 2) * width,
+                                           y: (center.y - ellipseDepth / 2) * depth,
+                                           width: ellipseWidth * width, height: ellipseDepth * depth))
+            }
+            local.stroke(path, with: .color(color), lineWidth: preview ? 1.2 : 1)
+        }
+        if selected || preview {
+            let bounds = CGRect(x: -width / 2 - 4, y: -depth / 2 - 4,
+                                width: width + 8, height: depth + 8)
+            local.stroke(Path(bounds), with: .color(color.opacity(preview ? 0.45 : 1)),
+                         style: StrokeStyle(lineWidth: 0.9, dash: [4, 3]))
+            if selected {
+                for x in [-width / 2, width / 2] {
+                    for y in [-depth / 2, depth / 2] {
+                        let handle = Path(CGRect(x: x - 3, y: y - 3, width: 6, height: 6))
+                        local.fill(handle, with: .color(.white))
+                        local.stroke(handle, with: .color(.black), lineWidth: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func drawItemPreview(_ item: PlanItem, context: inout GraphicsContext, size: CGSize) {
+        drawItem(item, selected: false, context: &context, size: size, preview: true)
+        let text: String
+        var labelContext = context
+        if item.kind == .line {
+            let radians = item.rotationDegrees * .pi / 180
+            let start = PlanPoint(x: item.position.x - cos(radians) * item.width / 2,
+                                  y: item.position.y - sin(radians) * item.width / 2)
+            let end = PlanPoint(x: item.position.x + cos(radians) * item.width / 2,
+                                y: item.position.y + sin(radians) * item.width / 2)
+            let position = screen(item.position, size: size)
+            labelContext.translateBy(x: position.x, y: position.y)
+            labelContext.rotate(by: .degrees(Geometry.readableDimensionAngle(from: start, to: end)))
+            text = store.unit.format(item.width)
+        } else {
+            let position = screen(PlanPoint(x: item.position.x, y: item.position.y - item.depth / 2), size: size)
+            labelContext.translateBy(x: position.x, y: position.y)
+            text = item.kind == .circle ? "Ø \(store.unit.format(item.width))"
+                : "\(store.unit.format(item.width)) × \(store.unit.format(item.depth))"
+        }
+        let labelWidth = max(45, Double(text.count) * 6.8 + 12)
+        labelContext.fill(Path(CGRect(x: -labelWidth / 2, y: -28, width: labelWidth, height: 20)),
+                          with: .color(.white.opacity(0.96)))
+        labelContext.draw(Text(text).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundColor(.blue),
+                          at: CGPoint(x: 0, y: -18))
+        if item.kind == .circle, let cursor, shapeAnchor != nil {
+            let endpoint = itemPoint(cursor)
+            let opposite = PlanPoint(x: item.position.x * 2 - endpoint.x,
+                                     y: item.position.y * 2 - endpoint.y)
+            let first = screen(opposite, size: size)
+            let last = screen(endpoint, size: size)
+            var diameter = Path()
+            diameter.move(to: first)
+            diameter.addLine(to: last)
+            context.stroke(diameter, with: .color(.blue.opacity(0.6)),
+                           style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+        }
+    }
+
     private func drawGuideLine(through point: PlanPoint, angleDegrees: Double,
                                context: inout GraphicsContext, size: CGSize) {
         let pivot = screen(point, size: size)
@@ -820,7 +1037,19 @@ struct PlanCanvas: View {
 
     private func drawPreview(context: inout GraphicsContext, size: CGSize) {
         guard store.canEditActiveLayer, !store.rotationPreviewActive, !store.dragPreviewActive, let cursor else { return }
-        if store.tool == .area {
+        if store.tool == .object || [.rectangle, .circle, .ellipse, .triangle, .line].contains(store.tool) {
+            if let item = itemDraft(at: cursor) {
+                drawItemPreview(item, context: &context, size: size)
+            } else if store.tool != .object {
+                let point = screen(itemPoint(cursor), size: size)
+                var cross = Path()
+                cross.move(to: CGPoint(x: point.x - 6, y: point.y))
+                cross.addLine(to: CGPoint(x: point.x + 6, y: point.y))
+                cross.move(to: CGPoint(x: point.x, y: point.y - 6))
+                cross.addLine(to: CGPoint(x: point.x, y: point.y + 6))
+                context.stroke(cross, with: .color(.blue), lineWidth: 1)
+            }
+        } else if store.tool == .area {
             var endpoint = areaPoint(cursor)
             let canClose: Bool
             if areaVertices.count >= 3, let first = areaVertices.first,

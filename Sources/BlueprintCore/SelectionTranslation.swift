@@ -22,13 +22,14 @@ extension FloorPlan {
         guard !selection.isEmpty else { throw PlanSelectionError.emptySelection }
         guard selection.wallIDs.isSubset(of: Set(walls.map(\.id))) else { throw PlanError.missingWall }
         guard selection.openingIDs.isSubset(of: Set(openings.map(\.id))) else { throw PlanError.missingOpening }
+        guard selection.itemIDs.isSubset(of: Set(items.map(\.id))) else { throw PlanItemError.missingItem }
         guard delta.x.isFinite, delta.y.isFinite else { throw PlanError.invalidCoordinate }
 
         let standaloneOpenings = openings.filter {
             selection.openingIDs.contains($0.id) && !selection.wallIDs.contains($0.wallID)
         }
         if let targetWallID {
-            guard selection.wallIDs.isEmpty, standaloneOpenings.count == 1 else {
+            guard selection.wallIDs.isEmpty, selection.itemIDs.isEmpty, standaloneOpenings.count == 1 else {
                 throw SelectionTranslationError.ambiguousDestinationWall
             }
             guard walls.contains(where: { $0.id == targetWallID }) else { throw PlanError.missingWall }
@@ -50,6 +51,9 @@ extension FloorPlan {
             if selection.wallIDs.contains(walls[index].id) || movedJunctions.contains(walls[index].end) {
                 candidate.walls[index].end = translated(walls[index].end)
             }
+        }
+        for index in items.indices where selection.itemIDs.contains(items[index].id) {
+            candidate.items[index].position = translated(items[index].position)
         }
 
         let originalWalls = Dictionary(uniqueKeysWithValues: walls.map { ($0.id, $0) })

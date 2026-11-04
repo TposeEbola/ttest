@@ -12,14 +12,18 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 
 ## First things to try
 
+- Open `Examples/FurnishedHome.quickplan` to see the object library in a plan. Its hidden Shapes floor contains all five shape types; select that floor and turn on its eye icon to show it.
 - Choose **Draw → Select** and click a wall to inspect it.
+- Open **Objects** and explore Bedroom, Bathroom, Miscellaneous, Kitchen, Character, Lights, Office, Living Room, and Staircase. Choose a preset, adjust its width and depth if needed, move over the canvas to see its footprint and dimensions, then click once to place it. Doors and windows still attach to walls.
+- In **Draw**, choose Rectangle, Ellipse, or Triangle and click two opposite corners. For Circle, click its centre and then an edge: the live **Ø** label shows the full diameter. For Line, click its two endpoints. Dimensions appear during placement and disappear after the final click; Escape cancels an unfinished shape.
+- Select a placed object or shape to rename, move, resize, or rotate it. Circle dimensions stay linked, and a line's size is its length. Use **Measure** when you want a dimension to remain on the drawing.
 - Choose **Pan** to drag the canvas around. With **Select**, drag a wall or opening to move that item; dragging empty space does not pan.
 - Pinch on a trackpad, or scroll vertically over the canvas, to zoom around the pointer. Use the toolbar's Fit button to bring the drawing back into view.
 - Choose **Rotate selection…** to use the circular angle control. Apply keeps the rotation; Cancel discards the preview.
 - Select a door to rotate its swing, or use **Flip left / right** and **Flip in / out** while keeping its opening attached to the wall.
-- Use **Shift-click** to select more than one wall, **Command-C** to copy, and **Command-V** to paste. **Shift-Command-V** pastes in place.
+- Use **Shift-click** to select walls, openings, and objects together, **Command-C** to copy, and **Command-V** to paste. **Shift-Command-V** pastes in place.
 - In **Floors & Layers**, use **+** to add a floor. The eye, lock, and opacity controls affect the chosen floor.
-- Expand a floor with its disclosure arrow, then click a wall in the list to inspect it.
+- Expand a floor with its disclosure arrow, then click a wall, object, or shape in the list to inspect it.
 - Choose **Measure** and click the inside faces of two walls. Move the pointer up/down for a horizontal span or left/right for a vertical span, then click a third time to place the dimension line. Escape cancels an unfinished measurement.
 - Wall lengths appear while you draw and disappear when the wall is placed. Explicit measurements stay visible; vertical labels read upward along their lines.
 - Select a placed measurement to change its endpoints or **Offset** in the inspector. The first two measured points stay fixed when you move the dimension line, and saved annotations retain their endpoints and offset when walls move.
@@ -30,6 +34,8 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 - Area values follow the same unit setting: square feet by default, or square metres in metric mode.
 - Optional: choose **McChickens 🍔** in Display Units for the fun unit. The app defines one McChicken as exactly **4 inches / 101.6 mm**, with areas in **McChickens²**. Entering `3` means **304.8 mm**. Switching back preserves the drawing's size; SVG exports keep real measurement units.
 
+Object presets use common starting dimensions, so change them to suit your furniture or fixtures. Staircase symbols help plan a footprint; they do not calculate stair rise/run or check building-code compliance. Everything remains a 2D plan. Save the `.quickplan` document to keep all floors and objects; SVG export includes the active floor's symbols and shapes.
+
 ## If it does not start
 
 - If Run is unavailable, wait for package loading to finish and confirm that the scheme is **QuickPlan** and the destination is **My Mac**.
@@ -37,7 +43,7 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 - If a build fails, open the **Issue navigator** with **Command-5**, expand the first red error, and copy its exact message. Include the Xcode version (**Xcode → About Xcode**) and macOS version when asking for help.
 - You can stop the running app using Xcode's square **Stop** button. Run it again with **Command-R**.
 
-Core geometry and file tests are exercised on Linux. The newest interactions, including three-click offset measurements and rotated labels, still need a native macOS check; an Xcode build error needs investigation rather than a signing subscription.
+Core geometry and file tests are exercised on Linux. The newest interactions, including the object library, shape previews, and object editing, still need a native macOS check; an Xcode build error needs investigation rather than a signing subscription.
 
 ## Build a standalone app later
 

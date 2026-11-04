@@ -147,18 +147,20 @@ public struct FloorPlan: Codable, Equatable, Sendable {
     public var openings: [Opening]
     public var dimensions: [PlanDimension]
     public var areas: [PlanArea]
+    public var items: [PlanItem]
     public var defaultWallThickness: Double
 
-    public init(walls: [Wall] = [], openings: [Opening] = [], dimensions: [PlanDimension] = [], areas: [PlanArea] = [], defaultWallThickness: Double = 150) {
+    public init(walls: [Wall] = [], openings: [Opening] = [], dimensions: [PlanDimension] = [], areas: [PlanArea] = [], items: [PlanItem] = [], defaultWallThickness: Double = 150) {
         self.walls = walls
         self.openings = openings
         self.dimensions = dimensions
         self.areas = areas
+        self.items = items
         self.defaultWallThickness = defaultWallThickness
     }
 
     private enum CodingKeys: String, CodingKey {
-        case walls, openings, dimensions, areas, defaultWallThickness
+        case walls, openings, dimensions, areas, items, defaultWallThickness
     }
 
     public init(from decoder: Decoder) throws {
@@ -167,6 +169,7 @@ public struct FloorPlan: Codable, Equatable, Sendable {
         openings = try values.decode([Opening].self, forKey: .openings)
         dimensions = try values.decodeIfPresent([PlanDimension].self, forKey: .dimensions) ?? []
         areas = try values.decodeIfPresent([PlanArea].self, forKey: .areas) ?? []
+        items = try values.decodeIfPresent([PlanItem].self, forKey: .items) ?? []
         defaultWallThickness = try values.decode(Double.self, forKey: .defaultWallThickness)
     }
 
@@ -196,16 +199,12 @@ public struct FloorPlan: Codable, Equatable, Sendable {
     /// Validate decoded documents and edits before accepting them into the editor.
     public func validate() throws {
         try Self.validateThickness(defaultWallThickness)
-        guard Set(walls.map(\.id)).count == walls.count,
-              Set(openings.map(\.id)).count == openings.count,
-              Set(dimensions.map(\.id)).count == dimensions.count,
-              Set(areas.map(\.id)).count == areas.count,
-              Set(walls.map(\.id)).isDisjoint(with: Set(openings.map(\.id))),
-              Set(dimensions.map(\.id)).isDisjoint(with: Set(walls.map(\.id))),
-              Set(dimensions.map(\.id)).isDisjoint(with: Set(openings.map(\.id))),
-              Set(areas.map(\.id)).isDisjoint(with: Set(walls.map(\.id) + openings.map(\.id) + dimensions.map(\.id))) else {
+        let identifiers = walls.map(\.id) + openings.map(\.id) + dimensions.map(\.id)
+            + areas.map(\.id) + items.map(\.id)
+        guard Set(identifiers).count == identifiers.count else {
             throw PlanError.duplicateIdentifier
         }
+        for item in items { try item.validate() }
         for area in areas { try area.validate() }
         for dimension in dimensions {
             guard dimension.offset.isFinite else { throw PlanError.invalidDimensionOffset }

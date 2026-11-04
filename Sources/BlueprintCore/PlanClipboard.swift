@@ -3,13 +3,15 @@ import Foundation
 public struct PlanSelection: Equatable, Sendable {
     public var wallIDs: Set<UUID>
     public var openingIDs: Set<UUID>
+    public var itemIDs: Set<UUID>
 
-    public init(wallIDs: Set<UUID> = [], openingIDs: Set<UUID> = []) {
+    public init(wallIDs: Set<UUID> = [], openingIDs: Set<UUID> = [], itemIDs: Set<UUID> = []) {
         self.wallIDs = wallIDs
         self.openingIDs = openingIDs
+        self.itemIDs = itemIDs
     }
 
-    public var isEmpty: Bool { wallIDs.isEmpty && openingIDs.isEmpty }
+    public var isEmpty: Bool { wallIDs.isEmpty && openingIDs.isEmpty && itemIDs.isEmpty }
 }
 
 public enum PlanSelectionError: LocalizedError, Equatable {
@@ -22,7 +24,7 @@ public enum PlanSelectionError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .emptySelection:
-            return "Select a wall, door, or window first."
+            return "Select a wall, door, window, object, or shape first."
         case .missingHostWall:
             return "Select a destination wall before pasting this door or window onto another floor."
         case .selectHostWallToRotate:
@@ -41,20 +43,23 @@ public struct PlanClipboard: Codable, Equatable, Sendable {
     public var walls: [Wall]
     public var openings: [Opening]
     public var sourceWalls: [Wall]
+    public var items: [PlanItem]
 
-    public init(walls: [Wall] = [], openings: [Opening] = [], sourceWalls: [Wall] = []) {
+    public init(walls: [Wall] = [], openings: [Opening] = [], sourceWalls: [Wall] = [], items: [PlanItem] = []) {
         self.walls = walls
         self.openings = openings
         self.sourceWalls = sourceWalls
+        self.items = items
     }
 
-    private enum CodingKeys: String, CodingKey { case walls, openings, sourceWalls }
+    private enum CodingKeys: String, CodingKey { case walls, openings, sourceWalls, items }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         walls = try container.decode([Wall].self, forKey: .walls)
         openings = try container.decode([Opening].self, forKey: .openings)
         sourceWalls = try container.decode([Wall].self, forKey: .sourceWalls)
+        items = try container.decodeIfPresent([PlanItem].self, forKey: .items) ?? []
         try validate()
     }
 
@@ -64,17 +69,18 @@ public struct PlanClipboard: Codable, Equatable, Sendable {
         try container.encode(walls, forKey: .walls)
         try container.encode(openings, forKey: .openings)
         try container.encode(sourceWalls, forKey: .sourceWalls)
+        try container.encode(items, forKey: .items)
     }
 
     public func validate() throws {
-        guard !walls.isEmpty || !openings.isEmpty else { throw PlanSelectionError.emptySelection }
+        guard !walls.isEmpty || !openings.isEmpty || !items.isEmpty else { throw PlanSelectionError.emptySelection }
         let referencedWalls = Set(openings.map(\.wallID))
         guard Set(sourceWalls.map(\.id)).isSubset(of: referencedWalls) else {
             throw PlanSelectionError.invalidClipboard
         }
         // This checks duplicate IDs, finite measurements, host references, fit,
         // and overlap before any clipboard data can enter a destination plan.
-        try FloorPlan(walls: walls + sourceWalls, openings: openings).validate()
+        try FloorPlan(walls: walls + sourceWalls, openings: openings, items: items).validate()
     }
 }
 
@@ -90,7 +96,8 @@ extension FloorPlan {
         let referencedIDs = Set(copiedOpenings.map(\.wallID)).subtracting(selection.wallIDs)
         let clipboard = PlanClipboard(
             walls: copiedWalls, openings: copiedOpenings,
-            sourceWalls: walls.filter { referencedIDs.contains($0.id) }
+            sourceWalls: walls.filter { referencedIDs.contains($0.id) },
+            items: items.filter { selection.itemIDs.contains($0.id) }
         )
         try clipboard.validate()
         return clipboard
@@ -137,6 +144,14 @@ extension FloorPlan {
             }
             candidate.openings.append(copy)
         }
+        for item in clipboard.items {
+            var copy = item
+            copy.id = UUID()
+            copy.position.x += offset.x
+            copy.position.y += offset.y
+            candidate.items.append(copy)
+            selection.itemIDs.insert(copy.id)
+        }
         try candidate.validate()
         self = candidate
         return selection
@@ -146,6 +161,7 @@ extension FloorPlan {
     public func selectionCenter(_ selection: PlanSelection) throws -> PlanPoint {
         let clipboard = try copySelection(selection)
         var points = clipboard.walls.flatMap { [$0.start, $0.end] }
+        points.append(contentsOf: clipboard.items.flatMap(\.corners))
         for opening in clipboard.openings where !selection.wallIDs.contains(opening.wallID) {
             guard let host = clipboard.sourceWalls.first(where: { $0.id == opening.wallID }) else {
                 throw PlanSelectionError.missingHostWall
@@ -160,7 +176,7 @@ extension FloorPlan {
         return PlanPoint(x: (minX + maxX) / 2, y: (minY + maxY) / 2)
     }
 
-    /// Rotate only selected walls. Unselected walls keep their current endpoints;
+    /// Rotate selected walls, objects, and shapes. Unselected walls keep their endpoints;
     /// a selected wall's own doors/windows follow it at unchanged along-wall offsets.
     public mutating func rotateSelection(
         _ selection: PlanSelection, byDegrees degrees: Double, around pivot: PlanPoint? = nil
@@ -168,7 +184,7 @@ extension FloorPlan {
         try validate()
         try validateSelection(selection)
         guard degrees.isFinite else { throw PlanSelectionError.invalidRotation }
-        guard !selection.wallIDs.isEmpty,
+        guard !selection.wallIDs.isEmpty || !selection.itemIDs.isEmpty,
               openings.filter({ selection.openingIDs.contains($0.id) })
                 .allSatisfy({ selection.wallIDs.contains($0.wallID) }) else {
             throw PlanSelectionError.selectHostWallToRotate
@@ -193,6 +209,12 @@ extension FloorPlan {
             candidate.walls[index].start = rotated(candidate.walls[index].start)
             candidate.walls[index].end = rotated(candidate.walls[index].end)
         }
+        for index in candidate.items.indices where selection.itemIDs.contains(candidate.items[index].id) {
+            candidate.items[index].position = rotated(candidate.items[index].position)
+            let angle = (candidate.items[index].rotationDegrees + normalized)
+                .truncatingRemainder(dividingBy: 360)
+            candidate.items[index].rotationDegrees = angle < 0 ? angle + 360 : angle
+        }
         try candidate.validate()
         self = candidate
     }
@@ -201,6 +223,7 @@ extension FloorPlan {
         guard !selection.isEmpty else { throw PlanSelectionError.emptySelection }
         guard selection.wallIDs.isSubset(of: Set(walls.map(\.id))) else { throw PlanError.missingWall }
         guard selection.openingIDs.isSubset(of: Set(openings.map(\.id))) else { throw PlanError.missingOpening }
+        guard selection.itemIDs.isSubset(of: Set(items.map(\.id))) else { throw PlanItemError.missingItem }
     }
 }
 

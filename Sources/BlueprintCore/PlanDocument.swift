@@ -165,6 +165,9 @@ public struct PlanDocument: Codable, Equatable, Sendable {
             plan.openings[index].id = UUID()
             plan.openings[index].wallID = newWallID
         }
+        for index in plan.items.indices {
+            plan.items[index].id = UUID()
+        }
         let copy = FloorLayer(name: nextCopyName(for: original.name), plan: plan, opacity: original.opacity)
         try transaction {
             $0.layers.insert(copy, at: index + 1)

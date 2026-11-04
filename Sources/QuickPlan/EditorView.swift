@@ -7,6 +7,7 @@ import BlueprintCore
 struct EditorView: View {
     @ObservedObject var store: PlanStore
     @State private var library = false
+    @State private var libraryCategory = "Openings"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,7 +33,7 @@ struct EditorView: View {
                 Image(systemName: "info.circle")
                 Text(store.status).lineLimit(2).textSelection(.enabled)
                 Spacer(minLength: 8)
-                Text("\(store.plan.walls.count) WALLS  /  \(store.plan.openings.count) OPENINGS")
+                Text("\(store.plan.walls.count) WALLS  /  \(store.plan.openings.count) OPENINGS  /  \(store.plan.items.count) OBJECTS")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
             }
             .font(.system(size: 11))
@@ -47,7 +48,25 @@ struct EditorView: View {
         }
         .onOpenURL { store.open(url: $0) }
         .onChange(of: store.tool) { _, tool in
-            if tool == .door || tool == .window { library = true }
+            if tool == .door || tool == .window {
+                library = true
+                libraryCategory = "Openings"
+            } else if tool == .object {
+                library = true
+                libraryCategory = store.selectedPreset?.kind.category.rawValue ?? store.catalogCategory.rawValue
+            }
+        }
+        .onChange(of: libraryCategory) { _, categoryName in
+            guard let category = ObjectCategory(rawValue: categoryName) else {
+                if store.tool != .door && store.tool != .window { store.chooseTool(.door) }
+                return
+            }
+            store.catalogCategory = category
+            if store.selectedPreset?.kind.category == category, let preset = store.selectedPreset {
+                if store.tool != .object { store.choosePreset(preset) }
+            } else if let preset = ObjectCatalog.presets(for: category).first {
+                store.choosePreset(preset)
+            }
         }
     }
 
@@ -108,11 +127,31 @@ struct EditorView: View {
         Group {
             eyebrow("01 / DRAWING TOOLS")
             VStack(spacing: 8) {
-                toolButton(.select, subtitle: "Move walls and openings")
+                toolButton(.select, subtitle: "Move and edit any item")
                 toolButton(.pan, subtitle: "Move the canvas")
                 toolButton(.wall, subtitle: "Click corners to connect")
                 toolButton(.measure, subtitle: "Inside wall-to-wall distances")
                 toolButton(.area, subtitle: "Trace room square footage")
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                eyebrow("BASIC SHAPES")
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+                    ForEach([EditorTool.rectangle, .circle, .ellipse, .triangle, .line]) { tool in
+                        Button { store.chooseTool(tool) } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: tool.symbol).font(.system(size: 18, weight: .light))
+                                Text(tool.title).font(.system(size: 10, weight: .medium))
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 10)
+                            .foregroundStyle(store.tool == tool ? .white : .black)
+                            .background(store.tool == tool ? Color.black : .white)
+                            .overlay(Rectangle().stroke(.black.opacity(0.2)))
+                        }.buttonStyle(.plain)
+                    }
+                }
+                Text("Size shapes on the canvas with live measurements.")
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineSpacing(3)
             }
             Divider()
             DefaultThicknessEditor(store: store)
@@ -142,8 +181,25 @@ struct EditorView: View {
 
     private var objectLibrary: some View {
         Group {
-            eyebrow("02 / OPENINGS")
-            Text("The finishing touches.").font(.system(size: 19, weight: .semibold))
+            eyebrow("02 / OBJECT LIBRARY")
+            Picker("Category", selection: $libraryCategory) {
+                Text("Openings").tag("Openings")
+                ForEach(ObjectCategory.allCases.filter { $0 != .shapes }, id: \.self) { category in
+                    Text(category.rawValue).tag(category.rawValue)
+                }
+            }
+            .font(.system(size: 12))
+            if libraryCategory == "Openings" {
+                openingLibrary
+            } else if let category = ObjectCategory(rawValue: libraryCategory) {
+                catalogLibrary(category)
+            }
+        }
+    }
+
+    private var openingLibrary: some View {
+        Group {
+            Text("Doors & windows").font(.system(size: 19, weight: .semibold))
             Text("Choose an opening, then click a wall to place it.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
             HStack(spacing: 6) {
@@ -184,6 +240,43 @@ struct EditorView: View {
         }
     }
 
+    private func catalogLibrary(_ category: ObjectCategory) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(category.rawValue).font(.system(size: 19, weight: .semibold))
+            Text("Choose an object, then click to place it. Use Select to move it or edit its size and angle in the inspector.")
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+            VStack(spacing: 8) {
+                ForEach(ObjectCatalog.presets(for: category)) { preset in
+                    Button { store.choosePreset(preset) } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: objectCategorySymbol(category))
+                                .font(.system(size: 22, weight: .light)).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(preset.name).font(.system(size: 11, weight: .semibold))
+                                Text("\(store.unit.format(preset.width)) × \(store.unit.format(preset.depth))")
+                                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(store.selectedPreset?.id == preset.id ? Color.black.opacity(0.05) : .white)
+                        .overlay(Rectangle().stroke(.black.opacity(store.selectedPreset?.id == preset.id ? 0.7 : 0.15)))
+                    }.buttonStyle(.plain)
+                }
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                eyebrow("CUSTOM SIZE / \(unitAbbreviation(store.unit))")
+                let circular = store.selectedPreset?.kind == .spiralStairs || store.selectedPreset?.kind == .circle
+                numberField(circular ? "Diameter" : "Width", value: $store.itemWidth, unit: store.unit)
+                if !circular { numberField("Depth", value: $store.itemDepth, unit: store.unit) }
+                Text(unitInputHint(store.unit)).font(.system(size: 10)).foregroundStyle(.secondary)
+                Text("Sizes are common planning examples. Adjust them to match your furniture and fixtures.")
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineSpacing(3)
+            }
+        }
+    }
+
     private var canvasToolbar: some View {
         HStack(spacing: 12) {
             Image(systemName: store.tool.symbol)
@@ -219,9 +312,9 @@ struct EditorView: View {
                         AreaInspector(store: store, area: area).id(area.id)
                     } else if let dimension = store.selectedDimension {
                         DimensionInspector(store: store, dimension: dimension).id(dimension.id)
-                    } else if store.selection.wallIDs.count + store.selection.openingIDs.count > 1 {
+                    } else if store.selection.wallIDs.count + store.selection.openingIDs.count + store.selection.itemIDs.count > 1 {
                         Text("Selection").font(.system(size: 23, weight: .semibold))
-                        Text("\(store.selection.wallIDs.count) walls · \(store.selection.openingIDs.count) openings")
+                        Text("\(store.selection.wallIDs.count) walls · \(store.selection.openingIDs.count) openings · \(store.selection.itemIDs.count) objects")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         RotationControls(store: store)
                         Button("Copy selected items", action: store.copySelection).buttonStyle(BlackButtonStyle())
@@ -231,16 +324,19 @@ struct EditorView: View {
                         OpeningInspector(store: store, opening: opening).id(opening.id)
                     } else if let wall = store.selectedWall {
                         WallInspector(store: store, wall: wall).id(wall.id)
+                    } else if let item = store.selectedItem {
+                        ItemInspector(store: store, item: item).id(item.id)
                     } else {
                         Image(systemName: "viewfinder").font(.system(size: 32, weight: .ultraLight)).padding(.top, 30)
                         Text("Precision, by design.").font(.system(size: 19, weight: .semibold))
-                        Text("Select a wall, door, or window to edit its exact measurements.")
+                        Text("Select a wall, opening, object, or shape to edit its exact measurements.")
                             .font(.system(size: 12)).foregroundStyle(.secondary).lineSpacing(4)
                         Divider()
                         eyebrow("ACTIVE FLOOR / \(store.activeLayer.name.uppercased())")
                         summaryRow("Walls", "\(store.plan.walls.count)")
                         summaryRow("Doors", "\(store.plan.openings.filter { $0.kind == .door }.count)")
                         summaryRow("Windows", "\(store.plan.openings.filter { $0.kind == .window }.count)")
+                        summaryRow("Objects & shapes", "\(store.plan.items.count)")
                         summaryRow("Measurements", "\(store.plan.dimensions.count)")
                         summaryRow("Room areas", "\(store.plan.areas.count)")
                         summaryRow("Wall length", store.unit.format(store.plan.walls.reduce(0) { $0 + $1.length }))
@@ -285,6 +381,58 @@ struct EditorView: View {
     }
     private func objectTab(_ tool: EditorTool) -> some View {
         tab(tool.title.uppercased(), active: store.tool == tool) { store.chooseTool(tool) }
+    }
+}
+
+@MainActor
+private struct ItemInspector: View {
+    @ObservedObject var store: PlanStore
+    let item: PlanItem
+    @State private var name = ""
+    @State private var centerX = 0.0
+    @State private var centerY = 0.0
+    @State private var width = 0.0
+    @State private var depth = 0.0
+    @State private var rotationDegrees = 0.0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(item.name).font(.system(size: 23, weight: .semibold))
+            Text(item.kind.category.rawValue).font(.system(size: 11)).foregroundStyle(.secondary)
+            RotationControls(store: store)
+            Divider()
+            eyebrow("NAME")
+            TextField("Object name", text: $name).textFieldStyle(.roundedBorder)
+            eyebrow("GEOMETRY / \(unitAbbreviation(store.unit))")
+            numberField("Center X", value: $centerX, unit: store.unit)
+            numberField("Center Y", value: $centerY, unit: store.unit)
+            numberField(item.isCircular ? "Diameter" : item.kind == .line ? "Length" : "Width", value: $width, unit: store.unit)
+            if !item.isCircular && item.kind != .line {
+                numberField("Depth", value: $depth, unit: store.unit)
+            }
+            HStack {
+                Text("Angle").font(.system(size: 11)).frame(width: 62, alignment: .leading)
+                TextField("Angle", value: $rotationDegrees, format: .number.precision(.fractionLength(0...2)))
+                    .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing)
+                    .font(.system(size: 12, design: .monospaced))
+                    .accessibilityLabel("Rotation in degrees")
+                Text("°").font(.system(size: 11))
+            }
+            Text(unitInputHint(store.unit)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Button("Apply changes") {
+                store.updateItem(id: item.id, name: name, position: .init(x: centerX, y: centerY),
+                                 width: width, depth: item.isCircular ? width : depth, rotationDegrees: rotationDegrees)
+            }.buttonStyle(BlackButtonStyle())
+            Text("Position uses the object's center. Drag with Select to move it, or use Rotate for angle guides.")
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+        }
+        .onAppear(perform: populate)
+        .onChange(of: item) { _, _ in populate() }
+    }
+
+    private func populate() {
+        name = item.name; centerX = item.position.x; centerY = item.position.y
+        width = item.width; depth = item.depth; rotationDegrees = item.rotationDegrees
     }
 }
 
@@ -489,6 +637,21 @@ private struct DefaultThicknessEditor: View {
 
 private func eyebrow(_ title: String) -> some View {
     Text(title).font(.system(size: 9, weight: .semibold, design: .monospaced)).tracking(1).foregroundStyle(.secondary)
+}
+
+func objectCategorySymbol(_ category: ObjectCategory) -> String {
+    switch category {
+    case .bedroom: return "bed.double"
+    case .bathroom: return "bathtub"
+    case .miscellaneous: return "shippingbox"
+    case .kitchen: return "oven"
+    case .character: return "figure.stand"
+    case .lights: return "lightbulb"
+    case .office: return "desktopcomputer"
+    case .livingRoom: return "sofa"
+    case .staircase: return "stairs"
+    case .shapes: return "square.on.circle"
+    }
 }
 private func numberField(_ title: String, value: Binding<Double>, unit: MeasurementUnit) -> some View {
     HStack {

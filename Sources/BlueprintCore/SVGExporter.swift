@@ -32,6 +32,14 @@ extension FloorPlan {
             minX = min(minX, point.x); minY = min(minY, point.y)
             maxX = max(maxX, point.x); maxY = max(maxY, point.y)
         }
+        if walls.isEmpty, dimensions.isEmpty, areas.isEmpty, let first = items.first?.corners.first {
+            minX = first.x; maxX = first.x
+            minY = first.y; maxY = first.y
+        }
+        for point in items.flatMap({ $0.corners }) {
+            minX = min(minX, point.x); minY = min(minY, point.y)
+            maxX = max(maxX, point.x); maxY = max(maxY, point.y)
+        }
         // Include a conservative bounding circle for each swing, including rotated doors.
         for opening in openings where opening.kind == .door {
             guard let wall = walls.first(where: { $0.id == opening.wallID }) else { continue }
@@ -106,6 +114,26 @@ extension FloorPlan {
             case .window:
                 let separation = svgNumber(wall.thickness * 0.22)
                 parts.append("<path d=\"M 0 -\(separation) H \(w) M 0 \(separation) H \(w) M 0 -\(svgNumber(wall.thickness / 2)) V \(svgNumber(wall.thickness / 2)) M \(w) -\(svgNumber(wall.thickness / 2)) V \(svgNumber(wall.thickness / 2))\" stroke=\"black\" stroke-width=\"10\" fill=\"none\"/>")
+            }
+            parts.append("</g>")
+        }
+
+        for item in items {
+            parts.append("<g class=\"plan-item\" data-kind=\"\(item.kind.rawValue)\" transform=\"translate(\(svgNumber(item.position.x)) \(svgNumber(item.position.y))) rotate(\(svgNumber(item.rotationDegrees)))\" stroke=\"black\" stroke-width=\"10\" stroke-linejoin=\"round\" stroke-linecap=\"round\" fill=\"none\">")
+            parts.append("<title>\(svgText(item.name))</title>")
+            for primitive in ItemSymbols.primitives(for: item.kind) {
+                switch primitive {
+                case let .polyline(points, closed):
+                    guard let first = points.first else { continue }
+                    let segments = points.dropFirst().map {
+                        "L \(svgNumber($0.x * item.width)) \(svgNumber($0.y * item.depth))"
+                    }
+                    let path = (["M \(svgNumber(first.x * item.width)) \(svgNumber(first.y * item.depth))"]
+                                + segments + (closed ? ["Z"] : [])).joined(separator: " ")
+                    parts.append("<path d=\"\(path)\"/>")
+                case let .ellipse(center, width, depth):
+                    parts.append("<ellipse cx=\"\(svgNumber(center.x * item.width))\" cy=\"\(svgNumber(center.y * item.depth))\" rx=\"\(svgNumber(width * item.width / 2))\" ry=\"\(svgNumber(depth * item.depth / 2))\"/>")
+                }
             }
             parts.append("</g>")
         }
