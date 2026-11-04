@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="144.968mm" height="129.728mm" viewBox="-576.2 -576.2 7248.4 6486.4">
 <title>QuickPlan floor plan</title>
-<desc>Wall dimensions are in millimetres. Drawing scale 1:50 when printed at 100 percent.</desc>
+<desc>Measurements are in millimetres. Drawing scale 1:50 when printed at 100 percent.</desc>
 <metadata>Model units: mm; drawing scale: 1:50</metadata>
 <rect x="-576.2" y="-576.2" width="7248.4" height="6486.4" fill="white"/>
 <metadata>Area geometry: mm²; area labels: square feet (sq ft)</metadata>
@@ -25,22 +25,6 @@
 <line class="opening-cutout" x1="0" y1="0" x2="1219.2" y2="0" stroke="white" stroke-width="154.4" stroke-linecap="butt"/>
 <path d="M 0 -33.528 H 1219.2 M 0 33.528 H 1219.2 M 0 -76.2 V 76.2 M 1219.2 -76.2 V 76.2" stroke="black" stroke-width="10" fill="none"/>
 </g>
-<g class="dimension" stroke="black" stroke-width="5" fill="none">
-<path d="M 0 226.2 L 6096 226.2 M 0 191.2 L 0 261.2 M 6096 191.2 L 6096 261.2"/>
-</g>
-<text class="dimension-label" transform="translate(3048 226.2) rotate(0)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">6096 mm</text>
-<g class="dimension" stroke="black" stroke-width="5" fill="none">
-<path d="M 5869.8 0 L 5869.8 4572 M 5904.8 0 L 5834.8 0 M 5904.8 4572 L 5834.8 4572"/>
-</g>
-<text class="dimension-label" transform="translate(5869.8 2286) rotate(90)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">4572 mm</text>
-<g class="dimension" stroke="black" stroke-width="5" fill="none">
-<path d="M 6096 4345.8 L 0 4345.8 M 6096 4380.8 L 6096 4310.8 M 0 4380.8 L 0 4310.8"/>
-</g>
-<text class="dimension-label" transform="translate(3048 4345.8) rotate(0)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">6096 mm</text>
-<g class="dimension" stroke="black" stroke-width="5" fill="none">
-<path d="M 226.2 4572 L 226.2 0 M 191.2 4572 L 261.2 4572 M 191.2 0 L 261.2 0"/>
-</g>
-<text class="dimension-label" transform="translate(226.2 2286) rotate(-90)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">4572 mm</text>
 <g class="measurement" stroke="black" stroke-width="7" fill="none">
 <path d="M 76.2 1800 L 6019.8 1800 M 76.2 1755 L 76.2 1845 M 6019.8 1755 L 6019.8 1845"/>
 </g>
@@ -48,5 +32,5 @@
 <g class="measurement" stroke="black" stroke-width="7" fill="none">
 <path d="M 4500 76.2 L 4500 4495.8 M 4545 76.2 L 4455 76.2 M 4545 4495.8 L 4455 4495.8"/>
 </g>
-<text class="measurement-label" transform="translate(4500 2286) rotate(90)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">4419.6 mm</text>
+<text class="measurement-label" transform="translate(4500 2286) rotate(-90)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">4419.6 mm</text>
 </svg>

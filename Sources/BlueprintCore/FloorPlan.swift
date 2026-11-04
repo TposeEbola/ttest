@@ -104,6 +104,7 @@ public enum PlanError: LocalizedError, Equatable {
     case overlappingOpenings
     case invalidDimensionLength
     case missingDimension
+    case invalidDimensionOffset
     case invalidDoorAngle
     case notADoor
 
@@ -131,6 +132,8 @@ public enum PlanError: LocalizedError, Equatable {
             return "Measurement lines must be at least 1 mm long and no longer than 10 km."
         case .missingDimension:
             return "The selected measurement no longer exists."
+        case .invalidDimensionOffset:
+            return "Enter a finite measurement-line offset."
         case .invalidDoorAngle:
             return "Enter a door swing angle between -180° and 180°."
         case .notADoor:
@@ -205,7 +208,8 @@ public struct FloorPlan: Codable, Equatable, Sendable {
         }
         for area in areas { try area.validate() }
         for dimension in dimensions {
-            for point in [dimension.start, dimension.end] {
+            guard dimension.offset.isFinite else { throw PlanError.invalidDimensionOffset }
+            for point in [dimension.start, dimension.end, dimension.lineStart, dimension.lineEnd] {
                 guard point.x.isFinite, point.y.isFinite,
                       abs(point.x) <= 10_000_000, abs(point.y) <= 10_000_000 else {
                     throw PlanError.invalidCoordinate

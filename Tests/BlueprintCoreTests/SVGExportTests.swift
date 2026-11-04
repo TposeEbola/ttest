@@ -13,7 +13,9 @@ final class SVGExportTests: XCTestCase {
         XCTAssertTrue(svg.contains("x1=\"-1000\""))
         XCTAssertTrue(svg.contains("x2=\"3000\""))
         XCTAssertTrue(svg.contains("stroke-width=\"150\""))
-        XCTAssertTrue(svg.contains("4000 mm</text>"))
+        XCTAssertFalse(svg.contains("4000 mm</text>"), "Wall lengths are shown while drawing, rather than exported as automatic annotations")
+        XCTAssertFalse(svg.contains("class=\"dimension\""))
+        XCTAssertFalse(svg.contains("class=\"dimension-label\""))
         XCTAssertTrue(XMLParser(data: Data(svg.utf8)).parse())
     }
 
@@ -82,6 +84,56 @@ final class SVGExportTests: XCTestCase {
         XCTAssertTrue(svg.contains("viewBox=\"9500 19500 4500 1000\""), "Measurement-only plans should frame their annotations, without pulling in the origin")
         XCTAssertTrue(svg.contains("M 10000 20000 L 13500 20000"))
         XCTAssertTrue(XMLParser(data: Data(svg.utf8)).parse())
+    }
+
+    func testOffsetMeasurementPreservesAnchorDistanceAndExportsExtensionLines() throws {
+        var plan = FloorPlan.empty
+        try plan.addDimension(from: .init(x: 10_000, y: 20_000),
+                              to: .init(x: 13_500, y: 20_000), offset: 1500)
+        let svg = try plan.svg()
+        XCTAssertTrue(svg.contains("viewBox=\"9500 19500 4500 2500\""), "Both the anchors and the offset dimension line must fit on the page")
+        XCTAssertTrue(svg.contains("class=\"measurement-extension\" d=\"M 10000 20000 L 10000 21500 M 13500 20000 L 13500 21500\""))
+        XCTAssertTrue(svg.contains("M 10000 21500 L 13500 21500"))
+        XCTAssertTrue(svg.contains("transform=\"translate(11750 21500) rotate(0)\""))
+        XCTAssertTrue(svg.contains("3500 mm</text>"), "Moving the annotation must preserve the distance between the original anchors")
+        XCTAssertTrue(XMLParser(data: Data(svg.utf8)).parse())
+    }
+
+    func testVerticalMeasurementLabelsRotateLeftForEitherAnchorOrder() throws {
+        for (start, end, offset) in [
+            (PlanPoint(x: 1000, y: 2000), PlanPoint(x: 1000, y: 6000), 500.0),
+            (PlanPoint(x: 1000, y: 6000), PlanPoint(x: 1000, y: 2000), -500.0)
+        ] {
+            var plan = FloorPlan.empty
+            try plan.addDimension(from: start, to: end, offset: offset)
+            let svg = try plan.svg()
+            XCTAssertTrue(svg.contains("viewBox=\"0 1500 1500 5000\""))
+            XCTAssertTrue(svg.contains("transform=\"translate(500 4000) rotate(-90)\""))
+            XCTAssertTrue(svg.contains("4000 mm</text>"))
+            XCTAssertTrue(XMLParser(data: Data(svg.utf8)).parse())
+        }
+    }
+
+    func testReversedHorizontalAndDiagonalMeasurementsKeepReadableLabels() throws {
+        var plan = FloorPlan.empty
+        try plan.addDimension(from: .init(x: 3000, y: 0), to: .init(x: 0, y: 0))
+        try plan.addDimension(from: .init(x: 0, y: 0), to: .init(x: -1000, y: 1000))
+        let svg = try plan.svg()
+        XCTAssertTrue(svg.contains("transform=\"translate(1500 0) rotate(0)\""))
+        XCTAssertTrue(svg.contains("transform=\"translate(-500 500) rotate(-45)\""))
+        XCTAssertTrue(XMLParser(data: Data(svg.utf8)).parse())
+    }
+
+    func testBundledSVGExamplesMatchTheirSavedPlans() throws {
+        let examples = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Examples", isDirectory: true)
+        for name in ["Starter", "MeasuredRoom"] {
+            let savedPlan = try Data(contentsOf: examples.appendingPathComponent("\(name).quickplan"))
+            let document = try JSONDecoder().decode(PlanDocument.self, from: savedPlan)
+            let expected = try String(contentsOf: examples.appendingPathComponent("\(name).svg"), encoding: .utf8)
+            XCTAssertEqual(try document.activeLayer.plan.svg(), expected, "Regenerate \(name).svg from its existing .quickplan file when export behavior changes")
+        }
     }
 
     func testAreaExportShowsInsideSquareFootageAndEscapesRoomName() throws {

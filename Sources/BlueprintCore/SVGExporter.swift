@@ -20,7 +20,7 @@ extension FloorPlan {
             minX = first.start.x; maxX = first.start.x
             minY = first.start.y; maxY = first.start.y
         }
-        for point in dimensions.flatMap({ [$0.start, $0.end] }) {
+        for point in dimensions.flatMap({ [$0.start, $0.end, $0.lineStart, $0.lineEnd] }) {
             minX = min(minX, point.x); minY = min(minY, point.y)
             maxX = max(maxX, point.x); maxY = max(maxY, point.y)
         }
@@ -51,7 +51,7 @@ extension FloorPlan {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"\(svgNumber(width / 50))mm\" height=\"\(svgNumber(height / 50))mm\" viewBox=\"\(svgNumber(minX - margin)) \(svgNumber(minY - margin)) \(svgNumber(width)) \(svgNumber(height))\">",
             "<title>QuickPlan floor plan</title>",
-            "<desc>Wall dimensions are in millimetres. Drawing scale 1:50 when printed at 100 percent.</desc>",
+            "<desc>Measurements are in millimetres. Drawing scale 1:50 when printed at 100 percent.</desc>",
             "<metadata>Model units: mm; drawing scale: 1:50</metadata>",
             "<rect x=\"\(svgNumber(minX - margin))\" y=\"\(svgNumber(minY - margin))\" width=\"\(svgNumber(width))\" height=\"\(svgNumber(height))\" fill=\"white\"/>"
         ]
@@ -110,38 +110,19 @@ extension FloorPlan {
             parts.append("</g>")
         }
 
-        for wall in walls {
-            let ux = (wall.end.x - wall.start.x) / wall.length
-            let uy = (wall.end.y - wall.start.y) / wall.length
-            let offset = wall.thickness / 2 + 150
-            let ax = wall.start.x - uy * offset
-            let ay = wall.start.y + ux * offset
-            let bx = wall.end.x - uy * offset
-            let by = wall.end.y + ux * offset
-            let mx = (ax + bx) / 2
-            let my = (ay + by) / 2
-            var angle = atan2(uy, ux) * 180 / .pi
-            if angle > 90 { angle -= 180 }
-            if angle < -90 { angle += 180 }
-            let tick = 35.0
-            parts.append("<g class=\"dimension\" stroke=\"black\" stroke-width=\"5\" fill=\"none\">")
-            parts.append("<path d=\"M \(svgNumber(ax)) \(svgNumber(ay)) L \(svgNumber(bx)) \(svgNumber(by)) M \(svgNumber(ax + uy * tick)) \(svgNumber(ay - ux * tick)) L \(svgNumber(ax - uy * tick)) \(svgNumber(ay + ux * tick)) M \(svgNumber(bx + uy * tick)) \(svgNumber(by - ux * tick)) L \(svgNumber(bx - uy * tick)) \(svgNumber(by + ux * tick))\"/>")
-            parts.append("</g>")
-            parts.append("<text class=\"dimension-label\" transform=\"translate(\(svgNumber(mx)) \(svgNumber(my))) rotate(\(svgNumber(angle)))\" y=\"-25\" text-anchor=\"middle\" font-family=\"Helvetica,Arial,sans-serif\" font-size=\"80\" fill=\"black\" stroke=\"white\" stroke-width=\"12\" paint-order=\"stroke\">\(svgNumber(wall.length)) mm</text>")
-        }
         for measurement in dimensions {
-            let start = measurement.start
-            let end = measurement.end
-            let ux = (end.x - start.x) / measurement.length
-            let uy = (end.y - start.y) / measurement.length
+            let start = measurement.lineStart
+            let end = measurement.lineEnd
+            let ux = (measurement.end.x - measurement.start.x) / measurement.length
+            let uy = (measurement.end.y - measurement.start.y) / measurement.length
             let tick = 45.0
-            var angle = atan2(uy, ux) * 180 / .pi
-            if angle > 90 { angle -= 180 }
-            if angle < -90 { angle += 180 }
             parts.append("<g class=\"measurement\" stroke=\"black\" stroke-width=\"7\" fill=\"none\">")
+            if measurement.offset != 0 {
+                parts.append("<path class=\"measurement-extension\" d=\"M \(svgNumber(measurement.start.x)) \(svgNumber(measurement.start.y)) L \(svgNumber(start.x)) \(svgNumber(start.y)) M \(svgNumber(measurement.end.x)) \(svgNumber(measurement.end.y)) L \(svgNumber(end.x)) \(svgNumber(end.y))\"/>")
+            }
             parts.append("<path d=\"M \(svgNumber(start.x)) \(svgNumber(start.y)) L \(svgNumber(end.x)) \(svgNumber(end.y)) M \(svgNumber(start.x + uy * tick)) \(svgNumber(start.y - ux * tick)) L \(svgNumber(start.x - uy * tick)) \(svgNumber(start.y + ux * tick)) M \(svgNumber(end.x + uy * tick)) \(svgNumber(end.y - ux * tick)) L \(svgNumber(end.x - uy * tick)) \(svgNumber(end.y + ux * tick))\"/>")
             parts.append("</g>")
-            parts.append("<text class=\"measurement-label\" transform=\"translate(\(svgNumber((start.x + end.x) / 2)) \(svgNumber((start.y + end.y) / 2))) rotate(\(svgNumber(angle)))\" y=\"-25\" text-anchor=\"middle\" font-family=\"Helvetica,Arial,sans-serif\" font-size=\"80\" fill=\"black\" stroke=\"white\" stroke-width=\"12\" paint-order=\"stroke\">\(svgNumber(measurement.length)) mm</text>")
+            parts.append("<text class=\"measurement-label\" transform=\"translate(\(svgNumber((start.x + end.x) / 2)) \(svgNumber((start.y + end.y) / 2))) rotate(\(svgNumber(measurement.labelAngleDegrees)))\" y=\"-25\" text-anchor=\"middle\" font-family=\"Helvetica,Arial,sans-serif\" font-size=\"80\" fill=\"black\" stroke=\"white\" stroke-width=\"12\" paint-order=\"stroke\">\(svgNumber(measurement.length)) mm</text>")
         }
         parts.append("</svg>")
         return parts.joined(separator: "\n")

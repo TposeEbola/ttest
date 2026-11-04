@@ -123,7 +123,7 @@ struct EditorView: View {
                 Toggle("Orthogonal walls", isOn: $store.orthogonal)
                 Toggle("Snap to grid", isOn: $store.snapToGrid)
                 Toggle("Show grid", isOn: $store.showGrid)
-                Text("Snap to existing corners or a \(store.unit == .imperial ? "6-inch" : "100 mm") grid. Turn aids off to draw freely; use the inspector for exact dimensions.")
+                Text("Snap to existing corners or a \(gridDescription(store.unit)) grid. Turn aids off to draw freely; use the inspector for exact dimensions.")
                     .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
             }
             .toggleStyle(.checkbox)
@@ -397,6 +397,7 @@ private struct DimensionInspector: View {
     @State private var startY = 0.0
     @State private var endX = 0.0
     @State private var endY = 0.0
+    @State private var lineOffset = 0.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -408,9 +409,12 @@ private struct DimensionInspector: View {
             numberField("Start Y", value: $startY, unit: store.unit)
             numberField("End X", value: $endX, unit: store.unit)
             numberField("End Y", value: $endY, unit: store.unit)
+            numberField("Offset", value: $lineOffset, unit: store.unit)
+            Text("Offset moves the dimension line perpendicular to its measured span; the distance stays the same.")
+                .font(.system(size: 10)).foregroundStyle(.secondary).lineSpacing(3)
             Text(unitInputHint(store.unit)).font(.system(size: 10)).foregroundStyle(.secondary)
-            Button("Apply endpoints") {
-                store.updateDimension(id: dimension.id, start: .init(x: startX, y: startY), end: .init(x: endX, y: endY))
+            Button("Apply measurement") {
+                store.updateDimension(id: dimension.id, start: .init(x: startX, y: startY), end: .init(x: endX, y: endY), offset: lineOffset)
             }.buttonStyle(BlackButtonStyle())
             Text("Measurements mark a distance between two points. They stay where you placed them when walls move.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
@@ -422,6 +426,7 @@ private struct DimensionInspector: View {
     private func populate() {
         startX = dimension.start.x; startY = dimension.start.y
         endX = dimension.end.x; endY = dimension.end.y
+        lineOffset = dimension.offset
     }
 }
 
@@ -466,8 +471,8 @@ private struct DefaultThicknessEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             eyebrow("WALL THICKNESS")
             HStack(spacing: 6) {
-                ForEach(store.unit == .imperial ? [101.6, 152.4, 203.2] : [100.0, 150.0, 200.0], id: \.self) { value in
-                    Button(store.unit == .imperial ? "\(Int((value / 25.4).rounded()))\"" : "\(Int(value))") { store.setDefaultThickness(value) }
+                ForEach(store.unit == .metric ? [100.0, 150.0, 200.0] : [101.6, 152.4, 203.2], id: \.self) { value in
+                    Button(thicknessPresetLabel(value, unit: store.unit)) { store.setDefaultThickness(value) }
                         .buttonStyle(.bordered)
                 }
             }
@@ -495,9 +500,33 @@ private func numberField(_ title: String, value: Binding<Double>, unit: Measurem
             .help(unitInputHint(unit))
     }
 }
-private func unitAbbreviation(_ unit: MeasurementUnit) -> String { unit == .imperial ? "FT + IN" : "MM" }
+private func unitAbbreviation(_ unit: MeasurementUnit) -> String {
+    switch unit {
+    case .imperial: return "FT + IN"
+    case .metric: return "MM"
+    case .mcChicken: return "MCCHICKENS"
+    }
+}
 private func unitInputHint(_ unit: MeasurementUnit) -> String {
-    unit == .imperial ? "Enter 8' 6\", 30in, or 30 1/2in. Plain numbers are inches." : "Enter dimensions in millimetres."
+    switch unit {
+    case .imperial: return "Enter 8' 6\", 30in, or 30 1/2in. Plain numbers are inches."
+    case .metric: return "Enter dimensions in millimetres."
+    case .mcChicken: return "For fun: 1 McChicken = 4 inches. Plain numbers count McChickens."
+    }
+}
+private func gridDescription(_ unit: MeasurementUnit) -> String {
+    switch unit {
+    case .imperial: return "6-inch"
+    case .metric: return "100 mm"
+    case .mcChicken: return "1 McChicken"
+    }
+}
+private func thicknessPresetLabel(_ mm: Double, unit: MeasurementUnit) -> String {
+    switch unit {
+    case .imperial: return "\(Int((mm / 25.4).rounded()))\""
+    case .metric: return "\(Int(mm))"
+    case .mcChicken: return (mm / MeasurementUnit.mcChickenMillimetres).formatted(.number.precision(.fractionLength(0...1))) + " 🍔"
+    }
 }
 
 struct LengthFormat: ParseableFormatStyle {

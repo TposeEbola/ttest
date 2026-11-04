@@ -239,16 +239,16 @@ final class PlanStore: ObservableObject {
     func updateDoor(id: UUID, swingDegrees: Double, hingeAtEnd: Bool) {
         change("Door orientation updated.") { try $0.updateDoor(id: id, swingDegrees: swingDegrees, hingeAtEnd: hingeAtEnd) }
     }
-    func commitDimension(from: PlanPoint, to: PlanPoint) {
-        change("Measurement added between the chosen points. It is saved with this floor.") {
-            let id = try $0.addDimension(from: from, to: to)
+    func commitDimension(from: PlanPoint, to: PlanPoint, offset: Double = 0) {
+        change("Measurement placed. Its anchors and dimension-line position are saved with this floor.") {
+            let id = try $0.addDimension(from: from, to: to, offset: offset)
             selection = PlanSelection()
             selectedDimensionID = id
             selectedAreaID = nil
         }
     }
-    func updateDimension(id: UUID, start: PlanPoint, end: PlanPoint) {
-        change("Measurement updated.") { try $0.updateDimension(id: id, start: start, end: end) }
+    func updateDimension(id: UUID, start: PlanPoint, end: PlanPoint, offset: Double? = nil) {
+        change("Measurement updated.") { try $0.updateDimension(id: id, start: start, end: end, offset: offset) }
     }
     func commitArea(vertices: [PlanPoint]) {
         change("Closed area saved. Its square footage appears in the floor list.") {
@@ -586,7 +586,7 @@ final class PlanStore: ObservableObject {
     func confirmClose() -> Bool { confirmDiscard() }
     func newPlan() {
         guard confirmDiscard() else { return }
-        document = PlanDocument(plan: FloorPlan(defaultWallThickness: unit == .imperial ? 152.4 : 150))
+        document = PlanDocument(plan: FloorPlan(defaultWallThickness: unit == .metric ? 150 : 152.4))
         lastPasteData = nil; pasteSequences.removeAll()
         savedDocument = document; fileURL = nil
         undoStack = []; redoStack = []; clearSelection(); fit()

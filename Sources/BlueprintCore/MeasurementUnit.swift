@@ -4,10 +4,14 @@ import Foundation
 public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashable, Sendable {
     case metric = "Millimetres"
     case imperial = "Feet & inches"
+    case mcChicken = "McChickens 🍔"
+
+    /// A playful unit fixed at exactly four inches, rather than a burger's size.
+    public static let mcChickenMillimetres: Double = 101.6
 
     public var id: String { rawValue }
 
-    /// Room areas use square feet or square metres while geometry remains in mm².
+    /// Room areas use square display units while geometry remains in mm².
     public func formatArea(_ squareMillimetres: Double) -> String {
         guard squareMillimetres.isFinite, squareMillimetres >= 0 else { return "—" }
         switch self {
@@ -15,6 +19,8 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
             return Self.decimal(squareMillimetres / (304.8 * 304.8), places: 3) + " sq ft"
         case .metric:
             return Self.decimal(squareMillimetres / 1_000_000, places: 3) + " m²"
+        case .mcChicken:
+            return Self.decimal(squareMillimetres / (Self.mcChickenMillimetres * Self.mcChickenMillimetres), places: 3) + " McChickens²"
         }
     }
 
@@ -23,6 +29,9 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
         switch self {
         case .metric:
             return Self.decimal(mm, places: 3) + " mm"
+        case .mcChicken:
+            let amount = Self.decimal(mm / Self.mcChickenMillimetres, places: 3)
+            return amount + (amount == "1" || amount == "-1" ? " McChicken" : " McChickens")
         case .imperial:
             // Round the whole measurement before splitting feet and inches so
             // an inch value of 11.9999 carries into the next foot correctly.
@@ -44,6 +53,8 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
         switch self {
         case .metric:
             return Self.decimal(mm, places: 9)
+        case .mcChicken:
+            return Self.decimal(mm / Self.mcChickenMillimetres, places: 9) + " McChickens"
         case .imperial:
             let totalInches = abs(mm) / 25.4
             guard totalInches.isFinite else { return "" }
@@ -61,8 +72,8 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
         }
     }
 
-    /// Imperial bare numbers are inches; metric bare numbers are millimetres.
-    /// Explicit mm, ft/' and in/\" units work in either display preference.
+    /// Bare numbers use inches, millimetres or McChickens in the active mode.
+    /// Explicit mm, ft/', in/\" and McChicken/🍔 units work in any display mode.
     public func parse(_ text: String) throws -> Double {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             .replacingOccurrences(of: "−", with: "-")
@@ -79,8 +90,19 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
         // A sign applies to the entire dimension, never to a component.
         guard !value.isEmpty, !value.contains("-"), !value.contains("+") else { throw MeasurementError.invalidMeasurement }
 
+        var mcChickenText = value
+        let hasBurgerEmoji = mcChickenText.hasSuffix("🍔")
+        if hasBurgerEmoji {
+            mcChickenText.removeLast()
+            mcChickenText = mcChickenText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let mcChickenSuffix = ["mcchickens", "mcchicken"].first { mcChickenText.hasSuffix($0) }
+
         let millimetres: Double
-        if value.hasSuffix("mm") {
+        if hasBurgerEmoji || mcChickenSuffix != nil {
+            if let mcChickenSuffix { mcChickenText = String(mcChickenText.dropLast(mcChickenSuffix.count)) }
+            millimetres = try Self.number(mcChickenText, fractions: false) * Self.mcChickenMillimetres
+        } else if value.hasSuffix("mm") {
             millimetres = try Self.number(String(value.dropLast(2)), fractions: false)
         } else {
             value = value.replacingOccurrences(of: "feet|foot|ft", with: "'", options: .regularExpression)
@@ -102,7 +124,11 @@ public enum MeasurementUnit: String, CaseIterable, Identifiable, Codable, Hashab
                 millimetres = try Self.number(String(value.dropLast()), fractions: true) * 25.4
             } else {
                 let amount = try Self.number(value, fractions: self == .imperial)
-                millimetres = self == .imperial ? amount * 25.4 : amount
+                switch self {
+                case .imperial: millimetres = amount * 25.4
+                case .metric: millimetres = amount
+                case .mcChicken: millimetres = amount * Self.mcChickenMillimetres
+                }
             }
         }
         let result = sign * millimetres

@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import BlueprintCore
 
@@ -88,5 +89,71 @@ final class MeasurementUnitTests: XCTestCase {
             XCTAssertEqual(MeasurementUnit.imperial.formatArea(invalid), "—")
             XCTAssertEqual(MeasurementUnit.metric.formatArea(invalid), "—")
         }
+    }
+
+    func testMcChickenUsesExactlyFourInches() throws {
+        XCTAssertEqual(MeasurementUnit.mcChickenMillimetres, 101.6)
+        XCTAssertEqual(MeasurementUnit.mcChicken.format(try MeasurementUnit.imperial.parse("4in")), "1 McChicken")
+        XCTAssertEqual(MeasurementUnit.mcChicken.format(203.2), "2 McChickens")
+        XCTAssertEqual(MeasurementUnit.mcChicken.format(0), "0 McChickens")
+        XCTAssertEqual(MeasurementUnit.mcChicken.format(-101.6), "-1 McChicken")
+        XCTAssertEqual(MeasurementUnit.mcChicken.format(101.6 * 1.234567), "1.235 McChickens")
+        XCTAssertEqual(try MeasurementUnit.mcChicken.parse("2"), 203.2, accuracy: 0.000_001)
+        XCTAssertEqual(try MeasurementUnit.mcChicken.parse("-.5"), -50.8, accuracy: 0.000_001)
+    }
+
+    func testExplicitMcChickenUnitsWorkInEveryDisplayMode() throws {
+        for unit in MeasurementUnit.allCases {
+            for text in ["2 McChickens", "2mcchicken", "2 MCCHICKENS", "2🍔", "2 McChickens 🍔", "2McChicken🍔"] {
+                XCTAssertEqual(try unit.parse(text), 203.2, accuracy: 0.000_001, "\(unit.rawValue): \(text)")
+            }
+            XCTAssertEqual(try unit.parse("−.5 McChicken"), -50.8, accuracy: 0.000_001)
+        }
+        XCTAssertEqual(try MeasurementUnit.mcChicken.parse("150mm"), 150)
+        XCTAssertEqual(try MeasurementUnit.mcChicken.parse("2ft 3in"), 685.8, accuracy: 0.000_001)
+        XCTAssertEqual(try MeasurementUnit.mcChicken.parse("6 1/2in"), 165.1, accuracy: 0.000_001)
+    }
+
+    func testMcChickenEditableValuesPreservePrecision() throws {
+        XCTAssertEqual(MeasurementUnit.mcChicken.inputString(203.2), "2 McChickens")
+        XCTAssertEqual(MeasurementUnit.mcChicken.inputString(101.6 * 1.234567891), "1.234567891 McChickens")
+        for original in [0, 101.6, -685.812345678, 1_234_567.8912345, 0.000_001] {
+            var value = original
+            for _ in 0..<20 {
+                value = try MeasurementUnit.mcChicken.parse(MeasurementUnit.mcChicken.inputString(value))
+                value = try MeasurementUnit.imperial.parse(MeasurementUnit.imperial.inputString(value))
+                value = try MeasurementUnit.metric.parse(MeasurementUnit.metric.inputString(value))
+            }
+            XCTAssertEqual(value, original, accuracy: 0.000_001)
+        }
+    }
+
+    func testMcChickenAreaUsesSquaredLengthUnit() {
+        let squareMcChicken = MeasurementUnit.mcChickenMillimetres * MeasurementUnit.mcChickenMillimetres
+        XCTAssertEqual(MeasurementUnit.mcChicken.formatArea(squareMcChicken), "1 McChickens²")
+        XCTAssertEqual(MeasurementUnit.mcChicken.formatArea(1.234567 * squareMcChicken), "1.235 McChickens²")
+        XCTAssertEqual(MeasurementUnit.mcChicken.formatArea(0), "0 McChickens²")
+        for invalid in [-1.0, .nan, .infinity, -.infinity] {
+            XCTAssertEqual(MeasurementUnit.mcChicken.formatArea(invalid), "—")
+        }
+    }
+
+    func testMcChickenRejectsMalformedAndNonfiniteMeasurements() {
+        for unit in MeasurementUnit.allCases {
+            for text in ["McChicken", "🍔", "nan McChickens", "infinity🍔", "1/0 McChicken", "2 McChicken garbage", "2 McChicken McChicken", "2🍔🍔", "2mm🍔", "2ft McChicken"] {
+                XCTAssertThrowsError(try unit.parse(text), "\(unit.rawValue): \(text)")
+            }
+        }
+        for invalid in [Double.nan, .infinity, -.infinity] {
+            XCTAssertEqual(MeasurementUnit.mcChicken.format(invalid), "—")
+            XCTAssertEqual(MeasurementUnit.mcChicken.inputString(invalid), "")
+        }
+    }
+
+    func testMcChickenPreferenceIsCodableAndListed() throws {
+        XCTAssertEqual(MeasurementUnit.mcChicken.rawValue, "McChickens 🍔")
+        XCTAssertEqual(MeasurementUnit.allCases, [.metric, .imperial, .mcChicken])
+        let saved = try JSONEncoder().encode(MeasurementUnit.mcChicken)
+        XCTAssertEqual(try JSONDecoder().decode(MeasurementUnit.self, from: saved), .mcChicken)
     }
 }

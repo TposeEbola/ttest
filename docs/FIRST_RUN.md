@@ -20,12 +20,15 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 - Use **Shift-click** to select more than one wall, **Command-C** to copy, and **Command-V** to paste. **Shift-Command-V** pastes in place.
 - In **Floors & Layers**, use **+** to add a floor. The eye, lock, and opacity controls affect the chosen floor.
 - Expand a floor with its disclosure arrow, then click a wall in the list to inspect it.
-- Choose **Measure** and click the inside faces of two walls to add a room-clearance measurement. These saved annotations stay at their placed endpoints when walls move.
+- Choose **Measure** and click the inside faces of two walls. Move the pointer up/down for a horizontal span or left/right for a vertical span, then click a third time to place the dimension line. Escape cancels an unfinished measurement.
+- Wall lengths appear while you draw and disappear when the wall is placed. Explicit measurements stay visible; vertical labels read upward along their lines.
+- Select a placed measurement to change its endpoints or **Offset** in the inspector. The first two measured points stay fixed when you move the dimension line, and saved annotations retain their endpoints and offset when walls move.
 - Choose **Area** and click around a room's inside boundary or a building's outside boundary. With at least three corners, click the first point or press Return to close the outline and see square footage. Escape cancels an unfinished trace.
 - Find a saved area's name and value under its floor in **Floors & Layers**. Select it to rename or delete it. Area outlines stay where you traced them when walls move.
 - Click **Settings** to switch feet/inches to millimetres.
 - Wall inspector fields follow that setting: a 20-foot length shows `20' 0"`, or `6096` in millimetres.
 - Area values follow the same unit setting: square feet by default, or square metres in metric mode.
+- Optional: choose **McChickens 🍔** in Display Units for the fun unit. The app defines one McChicken as exactly **4 inches / 101.6 mm**, with areas in **McChickens²**. Entering `3` means **304.8 mm**. Switching back preserves the drawing's size; SVG exports keep real measurement units.
 
 ## If it does not start
 
@@ -34,7 +37,7 @@ QuickPlan is a Mac app. You need macOS 14 (Sonoma) or later and Xcode 15 or late
 - If a build fails, open the **Issue navigator** with **Command-5**, expand the first red error, and copy its exact message. Include the Xcode version (**Xcode → About Xcode**) and macOS version when asking for help.
 - You can stop the running app using Xcode's square **Stop** button. Run it again with **Command-R**.
 
-Core geometry and file tests are exercised on Linux. The newest panning, dragging, door-rotation, floor outline, distance-measurement, and area-tracing interactions still need a native macOS check; an Xcode build error needs investigation rather than a signing subscription.
+Core geometry and file tests are exercised on Linux. The newest interactions, including three-click offset measurements and rotated labels, still need a native macOS check; an Xcode build error needs investigation rather than a signing subscription.
 
 ## Build a standalone app later
 

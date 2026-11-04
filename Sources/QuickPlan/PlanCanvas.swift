@@ -11,6 +11,7 @@ struct PlanCanvas: View {
     @State private var pan = CGSize.zero
     @State private var anchor: PlanPoint?
     @State private var dimensionAnchor: PlanPoint?
+    @State private var dimensionEnd: PlanPoint?
     @State private var areaVertices: [PlanPoint] = []
     @State private var cursor: PlanPoint?
     @State private var hoverLocation: CGPoint?
@@ -23,7 +24,13 @@ struct PlanCanvas: View {
     @State private var dragWasCancelled = false
     @FocusState private var isFocused: Bool
 
-    private var snapGrid: Double { store.unit == .imperial ? 152.4 : 100 }
+    private var snapGrid: Double {
+        switch store.unit {
+        case .imperial: return 152.4
+        case .metric: return 100
+        case .mcChicken: return MeasurementUnit.mcChickenMillimetres
+        }
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -74,6 +81,7 @@ struct PlanCanvas: View {
                     }
                     anchor = nil
                     dimensionAnchor = nil
+                    dimensionEnd = nil
                     areaVertices = []
                     store.report("Drawing ended. Click to begin again.")
                     return .handled
@@ -90,7 +98,7 @@ struct PlanCanvas: View {
                     return .handled
                 }
                 .accessibilityLabel("Floor plan drawing canvas")
-                .accessibilityHint("Pinch or scroll to zoom. Select and drag walls or openings. Measure places a distance; Area traces a closed room or footprint.")
+                .accessibilityHint("Pinch or scroll to zoom. Select and drag walls or openings. Measure uses two clicks for the distance and a third to position its label; Area traces a closed room or footprint.")
 
                 HStack(spacing: 12) {
                     Text(instructions)
@@ -112,18 +120,18 @@ struct PlanCanvas: View {
             .clipped()
             .onAppear { fitCanvas(size: proxy.size) }
             .onChange(of: store.tool) { _, _ in
-                anchor = nil; dimensionAnchor = nil; areaVertices = []
+                anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
                 store.cancelSelectionDrag()
             }
             .onChange(of: store.rotationPreviewActive) { _, active in
-                if active { anchor = nil; dimensionAnchor = nil; areaVertices = [] }
+                if active { anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
             }
             .onChange(of: store.document.activeLayerID) { _, _ in
-                anchor = nil; dimensionAnchor = nil; areaVertices = []
+                anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = []
                 store.cancelSelectionDrag()
             }
             .onChange(of: store.canEditActiveLayer) { _, editable in
-                if !editable { anchor = nil; dimensionAnchor = nil; areaVertices = [] }
+                if !editable { anchor = nil; dimensionAnchor = nil; dimensionEnd = nil; areaVertices = [] }
             }
             .onChange(of: store.plan.walls) { _, walls in
                 if let current = anchor, !walls.contains(where: { $0.start == current || $0.end == current }) {
@@ -144,7 +152,9 @@ struct PlanCanvas: View {
         switch store.tool {
         case .select: return "CLICK TO SELECT · DRAG TO MOVE · SHIFT-CLICK TO ADD"
         case .pan: return "DRAG TO PAN THE CANVAS"
-        case .measure: return dimensionAnchor == nil ? "CLICK FIRST WALL FACE TO MEASURE" : "CLICK SECOND WALL FACE · ESC TO CANCEL"
+        case .measure:
+            if dimensionEnd != nil { return "MOVE TO POSITION MEASUREMENT · CLICK TO PLACE · ESC CANCELS" }
+            return dimensionAnchor == nil ? "CLICK FIRST WALL FACE TO MEASURE" : "CLICK SECOND WALL FACE · ESC TO CANCEL"
         case .area: return areaVertices.isEmpty ? "CLICK ROOM OR FOOTPRINT CORNERS TO TRACE AN AREA" : "CLICK FIRST POINT OR RETURN TO CLOSE · DELETE REMOVES A CORNER · ESC CANCELS"
         case .wall: return anchor == nil ? "CLICK FIRST WALL POINT · OPTION-DRAG TO PAN" : "CLICK NEXT POINT · ESC ENDS CHAIN"
         case .door: return "CLICK A WALL TO PLACE A DOOR · OPTION-DRAG TO PAN"
@@ -163,6 +173,7 @@ struct PlanCanvas: View {
         pan = .zero
         anchor = nil
         dimensionAnchor = nil
+        dimensionEnd = nil
         areaVertices = []
     }
 
@@ -191,7 +202,7 @@ struct PlanCanvas: View {
         store.visibleLayers.flatMap { layer in
             let plan = layer.id == store.document.activeLayerID ? store.canvasPlan : layer.plan
             return plan.walls.flatMap { [$0.start, $0.end] }
-                + plan.dimensions.flatMap { [$0.start, $0.end] }
+                + plan.dimensions.flatMap { [$0.start, $0.end, $0.lineStart, $0.lineEnd] }
                 + plan.areas.flatMap(\.vertices)
         }
     }
@@ -311,11 +322,23 @@ struct PlanCanvas: View {
 
     private func dimensionHit(at point: PlanPoint) -> PlanDimension? {
         store.canvasPlan.dimensions.reversed().first { dimension in
-            let segment = Wall(start: dimension.start, end: dimension.end, thickness: 1)
+            let segment = Wall(start: dimension.lineStart, end: dimension.lineEnd, thickness: 1)
             if Geometry.distance(from: point, to: segment) <= 8 / store.zoom { return true }
-            let middle = PlanPoint(x: (dimension.start.x + dimension.end.x) / 2,
-                                   y: (dimension.start.y + dimension.end.y) / 2)
-            return abs(point.x - middle.x) < 45 / store.zoom && abs(point.y - middle.y) < 12 / store.zoom
+            for (anchor, end) in [(dimension.start, dimension.lineStart), (dimension.end, dimension.lineEnd)] {
+                if anchor.distance(to: end) > 0,
+                   Geometry.distance(from: point, to: Wall(start: anchor, end: end, thickness: 1)) <= 8 / store.zoom {
+                    return true
+                }
+            }
+            let middle = PlanPoint(x: (dimension.lineStart.x + dimension.lineEnd.x) / 2,
+                                   y: (dimension.lineStart.y + dimension.lineEnd.y) / 2)
+            let angle = dimension.labelAngleDegrees * .pi / 180
+            let dx = (point.x - middle.x) * store.zoom
+            let dy = (point.y - middle.y) * store.zoom
+            let localX = dx * cos(angle) + dy * sin(angle)
+            let localY = -dx * sin(angle) + dy * cos(angle)
+            let labelWidth = max(45, Double(store.unit.format(dimension.length).count) * 6.8 + 12)
+            return abs(localX) <= labelWidth / 2 + 3 && abs(localY) <= 12
         }
     }
 
@@ -443,6 +466,8 @@ struct PlanCanvas: View {
         isFocused = true
         guard store.canEditActiveLayer else {
             anchor = nil
+            dimensionAnchor = nil
+            dimensionEnd = nil
             store.report(store.activeLayer.isLocked
                 ? "Unlock this floor in Layers before editing it."
                 : "Show this floor in Layers before editing it.")
@@ -480,15 +505,26 @@ struct PlanCanvas: View {
                 ? "Choose another corner of the room or footprint."
                 : "Click the first corner or press Return to close and measure the area.")
         case .measure:
+            cursor = point
+            if let start = dimensionAnchor, let end = dimensionEnd {
+                let offset = PlanDimension(start: start, end: end).projectedOffset(toward: point)
+                let before = store.plan.dimensions.count
+                store.commitDimension(from: start, to: end, offset: offset)
+                if store.plan.dimensions.count > before {
+                    dimensionAnchor = nil
+                    dimensionEnd = nil
+                }
+                return
+            }
             let next = measurementPoint(point)
             guard let previous = dimensionAnchor else {
                 dimensionAnchor = next
-                store.report("Click the other room wall face to place the inside measurement.")
+                store.report("Click the other room wall face to set the measured distance.")
                 return
             }
             guard previous.distance(to: next) >= 1 else { return }
-            store.commitDimension(from: previous, to: next)
-            dimensionAnchor = nil
+            dimensionEnd = next
+            store.report("Move to position the measurement beside the walls, then click to place it.")
         case .wall:
             let next = snapped(point)
             guard let previous = anchor else {
@@ -581,9 +617,6 @@ struct PlanCanvas: View {
         for dimension in plan.dimensions {
             drawRoomDimension(dimension, selected: showSelection && store.selectedDimensionID == dimension.id,
                               context: &context, size: size)
-        }
-        if isActive {
-            for wall in plan.walls { drawDimension(wall, context: &context, size: size) }
         }
     }
 
@@ -713,13 +746,24 @@ struct PlanCanvas: View {
 
     private func drawRoomDimension(_ dimension: PlanDimension, selected: Bool,
                                    context: inout GraphicsContext, size: CGSize, preview: Bool = false) {
-        let start = screen(dimension.start, size: size)
-        let end = screen(dimension.end, size: size)
+        let start = screen(dimension.lineStart, size: size)
+        let end = screen(dimension.lineEnd, size: size)
+        let anchors = [screen(dimension.start, size: size), screen(dimension.end, size: size)]
         let distance = hypot(end.x - start.x, end.y - start.y)
         guard distance > 0 else { return }
         let nx = -(end.y - start.y) / distance
         let ny = (end.x - start.x) / distance
         let color: Color = selected || preview ? .blue : .black
+        if abs(dimension.offset) * store.zoom > 0.5 {
+            let direction = dimension.offset < 0 ? -1.0 : 1.0
+            var extensions = Path()
+            for (anchor, endpoint) in zip(anchors, [start, end]) {
+                extensions.move(to: anchor)
+                extensions.addLine(to: CGPoint(x: endpoint.x + nx * direction * 5,
+                                              y: endpoint.y + ny * direction * 5))
+            }
+            context.stroke(extensions, with: .color(color.opacity(0.55)), lineWidth: 0.7)
+        }
         var marks = Path()
         marks.move(to: start); marks.addLine(to: end)
         for point in [start, end] {
@@ -731,39 +775,16 @@ struct PlanCanvas: View {
         let text = store.unit.format(dimension.length)
         let middle = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let width = max(45, Double(text.count) * 6.8 + 12)
-        context.fill(Path(CGRect(x: middle.x - width / 2, y: middle.y - 10, width: width, height: 20)), with: .color(.white))
-        context.draw(Text(text).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundColor(color), at: middle)
+        var labelContext = context
+        labelContext.translateBy(x: middle.x, y: middle.y)
+        labelContext.rotate(by: .degrees(dimension.labelAngleDegrees))
+        labelContext.fill(Path(CGRect(x: -width / 2, y: -10, width: width, height: 20)), with: .color(.white))
+        labelContext.draw(Text(text).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundColor(color), at: .zero)
         if selected || preview {
-            for point in [start, end] {
+            for point in anchors {
                 context.fill(Path(ellipseIn: CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)), with: .color(color))
             }
         }
-    }
-
-    private func drawDimension(_ wall: Wall, context: inout GraphicsContext, size: CGSize) {
-        let a = screen(wall.start, size: size)
-        let b = screen(wall.end, size: size)
-        let length = hypot(b.x - a.x, b.y - a.y)
-        guard length > 20 else { return }
-        let nx = -(b.y - a.y) / length
-        let ny = (b.x - a.x) / length
-        let offset = -(wall.thickness * store.zoom / 2 + 21)
-        let from = CGPoint(x: a.x + nx * offset, y: a.y + ny * offset)
-        let to = CGPoint(x: b.x + nx * offset, y: b.y + ny * offset)
-        var line = Path()
-        line.move(to: from)
-        line.addLine(to: to)
-        for point in [from, to] {
-            line.move(to: CGPoint(x: point.x - nx * 4, y: point.y - ny * 4))
-            line.addLine(to: CGPoint(x: point.x + nx * 4, y: point.y + ny * 4))
-        }
-        context.stroke(line, with: .color(.black.opacity(0.55)), lineWidth: 0.7)
-        let label = store.unit.format(wall.length)
-        let middle = CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2)
-        let labelWidth = max(36, Double(label.count) * 6.8 + 10)
-        let background = CGRect(x: middle.x - labelWidth / 2, y: middle.y - 9, width: labelWidth, height: 18)
-        context.fill(Path(background), with: .color(.white))
-        context.draw(Text(label).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundColor(.black), at: middle)
     }
 
     private func drawGuideLine(through point: PlanPoint, angleDegrees: Double,
@@ -828,13 +849,18 @@ struct PlanCanvas: View {
             context.stroke(Path(ellipseIn: CGRect(x: point.x - radius, y: point.y - radius,
                                                  width: radius * 2, height: radius * 2)), with: .color(.blue), lineWidth: 1.4)
         } else if store.tool == .measure {
-            let endpoint = measurementPoint(cursor)
-            let point = screen(endpoint, size: size)
-            context.stroke(Path(ellipseIn: CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)),
-                           with: .color(.blue), lineWidth: 1.2)
-            if let start = dimensionAnchor {
+            if let start = dimensionAnchor, let end = dimensionEnd {
+                var dimension = PlanDimension(start: start, end: end)
+                dimension.offset = dimension.projectedOffset(toward: cursor)
+                drawRoomDimension(dimension, selected: false, context: &context, size: size, preview: true)
+            } else if let start = dimensionAnchor {
+                let endpoint = measurementPoint(cursor)
                 let dimension = PlanDimension(start: start, end: endpoint)
                 drawRoomDimension(dimension, selected: false, context: &context, size: size, preview: true)
+            } else {
+                let point = screen(measurementPoint(cursor), size: size)
+                context.stroke(Path(ellipseIn: CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)),
+                               with: .color(.blue), lineWidth: 1.2)
             }
         } else if store.tool == .wall {
             let guide = wallSnap(cursor)
@@ -848,7 +874,7 @@ struct PlanCanvas: View {
             cross.move(to: CGPoint(x: p.x - 7, y: p.y)); cross.addLine(to: CGPoint(x: p.x + 7, y: p.y))
             cross.move(to: CGPoint(x: p.x, y: p.y - 7)); cross.addLine(to: CGPoint(x: p.x, y: p.y + 7))
             context.stroke(cross, with: .color(hasGuide ? .blue : .black), lineWidth: 1)
-            if let anchor {
+            if let anchor, anchor.distance(to: endpoint) >= 1 {
                 let from = screen(anchor, size: size)
                 var line = Path()
                 line.move(to: from); line.addLine(to: p)
@@ -862,9 +888,17 @@ struct PlanCanvas: View {
                     labelParts.append(visibleWalls.contains { abs($0.length - matched) <= 0.000_001 }
                         ? "LENGTH MATCH" : "GRID LENGTH")
                 }
-                let label = Text(labelParts.joined(separator: " · "))
+                let labelText = labelParts.joined(separator: " · ")
+                let label = Text(labelText)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundColor(hasGuide ? .blue : .black)
-                context.draw(label, at: CGPoint(x: p.x + 12, y: p.y - 16), anchor: .leading)
+                var labelContext = context
+                labelContext.translateBy(x: (from.x + p.x) / 2, y: (from.y + p.y) / 2)
+                labelContext.rotate(by: .degrees(Geometry.readableDimensionAngle(from: anchor, to: endpoint)))
+                let labelY = -(store.plan.defaultWallThickness * store.zoom / 2 + 18)
+                let labelWidth = max(45, Double(labelText.count) * 6.8 + 12)
+                labelContext.fill(Path(CGRect(x: -labelWidth / 2, y: labelY - 10, width: labelWidth, height: 20)),
+                                  with: .color(.white))
+                labelContext.draw(label, at: CGPoint(x: 0, y: labelY))
                 if guide.matchedLength != nil {
                     let dx = p.x - from.x
                     let dy = p.y - from.y

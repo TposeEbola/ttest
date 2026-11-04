@@ -13,7 +13,8 @@ A small native macOS app for quick, measured 2D house plans. The editor uses a b
 - Place doors and windows on walls using common real-world width and height presets, or enter custom measurements.
 - Edit opening measurements and position. Openings must fit on their wall without overlapping.
 - Rotate a door's swing around its hinge, or flip its hinge and swing direction while its opening stays in the wall.
-- Place room measurements between inside wall faces and keep those annotations in the drawing.
+- Measure between inside wall faces, then offset and place the dimension line with a third click.
+- See wall lengths while drawing; keep only the explicit measurements you place in the finished drawing.
 - Trace a closed room or building outline with **Area** to calculate square footage, or square metres in metric mode.
 - Keep multiple floors in one file, with Photoshop-style layer selection, visibility, locking, opacity, and stacking order.
 - Expand a floor to find and select its individual walls.
@@ -50,13 +51,15 @@ The script creates `dist/QuickPlan.app` and signs it locally with an ad-hoc sign
 1. Choose the wall tool and click the start and end of a wall. Continue clicking to draw connected walls. Press Escape to end the chain.
 2. Choose **Pan** to drag the canvas. Choose **Select** to inspect or drag drawing items; dragging empty space with Select leaves the canvas in place.
 3. Open **Objects** to choose a door or window and its dimensions, then click a wall to place it.
-4. Choose **Measure** and click two points to add a distance annotation. Near a wall, the point snaps to its face so you can measure a room's inside clearance.
+4. Choose **Measure**, click the first and second points, then move the pointer to position the dimension line and click a third time to place it. A horizontal span lets you move the line up or down; a vertical span lets you move it left or right. Near a wall, the first two points snap to its face so you can measure a room's inside clearance.
 5. Choose **Area** to trace an inside room boundary or outside building boundary. After at least three corners, click the starting point or press Return to close and save the outline. Escape cancels an unfinished trace.
 6. Add floor layers as needed, then save the whole plan as a `.quickplan` document. Export SVG when you need a portable vector drawing of the active floor.
 
 Open the visible **Settings** button or **QuickPlan → Settings…** (**⌘,**) to choose feet/inches or millimetres. Wall and opening inspector fields use the same setting: feet/inches fields show values such as `20' 0"`, and switching to millimetres shows `6096` for that same length. Measurement fields accept explicit entries such as `12' 6"`, `30in`, `30 1/2in`, and `762mm`. Plain numbers mean inches in feet/inches mode and millimetres in metric mode. The plan stores geometry in millimetres to preserve its measurements when you switch.
 
-Wall dimensions measure **centre lines**. Thickness extends equally on either side. **Orthogonal walls**, **Snap to grid**, and **Smart guides** are separate drawing aids. Turn off the aids you do not want for free placement.
+For a fun extra, choose **McChickens 🍔** in Display Units. QuickPlan defines **1 McChicken = exactly 4 inches = 101.6 mm**; this is an app unit, not a claim about a real burger's size. Length labels and editable fields use McChicken counts, plain numbers mean those counts, and areas use **McChickens²**. For example, `3` means **304.8 mm**, and **1 McChicken² = 10,322.56 mm²**. The selected grid step is one McChicken. Switching units changes the display and input scale without resizing the drawing or adding undo history. SVG exports keep actual millimetres and square-foot area labels.
+
+The live length shown while drawing a wall measures its **centre line**. Thickness extends equally on either side. That automatic label disappears when the wall is placed; use **Measure** for a dimension you want to keep. Vertical length labels read upward along the wall or dimension line, while horizontal and diagonal labels follow their span. **Orthogonal walls**, **Snap to grid**, and **Smart guides** are separate drawing aids. Turn off the aids you do not want for free placement.
 
 For a starting example, open [Examples/Starter.quickplan](Examples/Starter.quickplan). Its exported drawing is [Examples/Starter.svg](Examples/Starter.svg).
 
@@ -90,9 +93,11 @@ Blue **Smart guides** help align walls at common **45° increments**, including 
 
 ## Measure a room
 
-Choose **Measure**, click the inside face of one wall, then click the opposite inside face. The annotation shows the distance between those points in the current display units. Wall-face snapping accounts for thickness: between walls with centre lines 20 feet apart and a thickness of 6 inches each, the inside clearance is **19 feet 6 inches** (**5943.6 mm**).
+Choose **Measure** and click the inside face of one wall, then the opposite inside face. These two clicks fix the measured endpoints. Move the pointer perpendicular to the span to position the dimension line, then click a third time to save it. For a horizontal measurement the line moves up or down; for a vertical measurement it moves left or right. Moving the line does not change its endpoints or measured distance. Press Escape, change tools, or change floors to cancel an unfinished dimension.
 
-Measurements belong to the active floor. Select a measurement to inspect or edit its endpoints, or delete it. They save with the plan and appear in that floor's SVG export. Measurement endpoints stay where you placed them; moving a wall does not automatically move an existing annotation.
+The annotation shows the distance between the first two points in the current display units. Wall-face snapping accounts for thickness: between walls with centre lines 20 feet apart and a thickness of 6 inches each, the inside clearance is **19 feet 6 inches** (**5943.6 mm**). Extension lines connect the original points to the offset dimension line. Vertical text reads bottom-to-top, facing left, regardless of which endpoint you chose first.
+
+Measurements belong to the active floor. Select a measurement at its placed line or label to edit its endpoints and **Offset**, or delete it. The third click creates one undoable edit; moving the preview creates none. Explicit measurements remain visible and appear in that floor's SVG export, while automatic wall-length labels appear only during drawing. Saved files retain the offset; older annotations open with zero offset. Measurement endpoints stay where you placed them, so moving a wall does not automatically move an existing annotation.
 
 ## Calculate square footage
 
@@ -112,7 +117,7 @@ All floors share the same drawing coordinates. To trace an upper storey, set **F
 
 Saving preserves every floor, its geometry, distance and area annotations, layer settings, and the selected floor in one file. Older single-floor `.quickplan` files open automatically as a single floor; the next save writes the version-1 layered document format. Files saved before annotation and door-swing controls were added open with no annotations and the original default door orientation.
 
-**SVG export includes the active floor only.** Other visible floors used as references are excluded. Check the active floor name before exporting. Exports use a **1:50 drawing scale** when printed at **100% / actual size**. Dimension labels show real wall measurements in millimetres. Printer scaling such as “fit to page” changes the drawing scale.
+**SVG export includes the active floor only.** Other visible floors used as references are excluded. Check the active floor name before exporting. Exports use a **1:50 drawing scale** when printed at **100% / actual size**. Only explicit measurement annotations are exported, with their saved offsets and extension lines; automatic wall-length labels are omitted. Their labels show actual measured distances in millimetres. Printer scaling such as “fit to page” changes the drawing scale.
 
 ## Build and test
 

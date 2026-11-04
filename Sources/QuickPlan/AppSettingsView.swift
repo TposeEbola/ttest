@@ -13,7 +13,7 @@ struct AppSettingsView: View {
                 }.pickerStyle(.radioGroup)
                 Text("Changes measurement labels and dimension inputs. Your plan keeps the same exact physical size.")
                     .font(.callout).foregroundStyle(.secondary)
-                Text(store.unit == .imperial ? "Enter feet and inches, such as 8' 6\" or 30 1/2in. Plain numbers mean inches." : "Enter millimetres, such as 2400 or 152.4mm.")
+                Text(inputHint)
                     .font(.callout).foregroundStyle(.secondary)
             }
             .formStyle(.grouped)
@@ -30,7 +30,15 @@ struct AppSettingsView: View {
             .tabItem { Label("Drawing", systemImage: "pencil.and.outline") }
         }
         .padding(16)
-        .frame(width: 440, height: 290)
+        .frame(width: 440, height: 330)
+    }
+
+    private var inputHint: String {
+        switch store.unit {
+        case .imperial: return "Enter feet and inches, such as 8' 6\" or 30 1/2in. Plain numbers mean inches."
+        case .metric: return "Enter millimetres, such as 2400 or 152.4mm."
+        case .mcChicken: return "A little easter egg: 1 McChicken = 4 inches (101.6 mm). Enter 3 McChickens or just 3. Your plan keeps its real dimensions."
+        }
     }
 }
 #endif
