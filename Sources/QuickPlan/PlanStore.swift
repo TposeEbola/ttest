@@ -1,0 +1,509 @@
+#if os(macOS)
+import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
+import BlueprintCore
+
+enum EditorTool: String, CaseIterable, Identifiable {
+    case select, wall, door, window
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var symbol: String {
+        switch self {
+        case .select: return "cursorarrow"
+        case .wall: return "line.diagonal"
+        case .door: return "door.left.hand.open"
+        case .window: return "window.casement"
+        }
+    }
+}
+
+typealias DisplayUnit = MeasurementUnit
+
+struct OpeningPreset: Identifiable {
+    let name: String
+    let width: Double
+    let height: Double
+    var id: String { name }
+    static let doors = [
+        OpeningPreset(name: "Interior door", width: 812.8, height: 2032),
+        OpeningPreset(name: "Entry door", width: 914.4, height: 2032),
+        OpeningPreset(name: "Bathroom door", width: 711.2, height: 2032),
+        OpeningPreset(name: "Double door", width: 1524, height: 2032)
+    ]
+    static let windows = [
+        OpeningPreset(name: "Standard window", width: 1219.2, height: 1219.2),
+        OpeningPreset(name: "Small window", width: 609.6, height: 914.4),
+        OpeningPreset(name: "Wide window", width: 1828.8, height: 1219.2),
+        OpeningPreset(name: "Picture window", width: 2438.4, height: 1524)
+    ]
+}
+
+@MainActor
+final class PlanStore: ObservableObject {
+    @Published private(set) var document: PlanDocument
+    @Published private(set) var selection = PlanSelection()
+    @Published var tool: EditorTool = .select
+    @Published var zoom: Double = 0.08
+    @Published var status = "Draw a wall, or select an element to edit its measurements."
+    @Published var showGrid = true
+    @Published var snapToGrid = true
+    @Published var orthogonal = true
+    @Published var smartGuides = true
+    @Published private(set) var rotationDegrees: Double = 0
+    @Published private(set) var rotationPreviewPlan: FloorPlan?
+    @Published private(set) var rotationPivot: PlanPoint?
+    @Published private(set) var rotationGuideDegrees: Double?
+    @Published var unit: DisplayUnit = .imperial {
+        didSet { UserDefaults.standard.set(unit.rawValue, forKey: "measurementUnit") }
+    }
+    @Published var openingWidth: Double = 812.8
+    @Published var openingHeight: Double = 2032
+    @Published private(set) var undoStack: [PlanDocument] = []
+    @Published private(set) var redoStack: [PlanDocument] = []
+    @Published private(set) var fileURL: URL?
+    @Published private(set) var savedDocument: PlanDocument
+    private var opacityEditStart: PlanDocument?
+    private var rotationBasePlan: FloorPlan?
+    private var rotationBaseSelection: PlanSelection?
+    private var rotationBaseLayerID: UUID?
+    private var rotationReferenceAngle: Double = 0
+    private let pasteboard: NSPasteboard
+    private var lastPasteData: Data?
+    private var pasteSequences: [UUID: Int] = [:]
+    static let selectionPasteboardType = NSPasteboard.PasteboardType("com.quickplan.selection")
+
+    init(pasteboard: NSPasteboard? = nil) {
+        self.pasteboard = pasteboard ?? .general
+        let initial = PlanDocument.example
+        document = initial
+        savedDocument = initial
+        if let stored = UserDefaults.standard.string(forKey: "measurementUnit"), let unit = DisplayUnit(rawValue: stored) {
+            self.unit = unit
+        }
+    }
+
+    var plan: FloorPlan { document.activeLayer.plan }
+    var canvasPlan: FloorPlan { rotationPreviewPlan ?? plan }
+    var activeLayer: FloorLayer { document.activeLayer }
+    var visibleLayers: [FloorLayer] { document.layers.filter { $0.isVisible && $0.opacity > 0 } }
+    var canEditActiveLayer: Bool { activeLayer.isVisible && !activeLayer.isLocked }
+    var canUndo: Bool { !undoStack.isEmpty || (opacityEditStart.map { $0.layers != document.layers } ?? false) }
+    var canRedo: Bool { !redoStack.isEmpty }
+    // Selecting a floor changes the editing context, not the drawing itself.
+    var isDirty: Bool { document.layers != savedDocument.layers }
+    var name: String { fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled Plan" }
+    var selectedWall: Wall? { plan.walls.first { $0.id == selectedWallID } }
+    var selectedOpening: Opening? { plan.openings.first { $0.id == selectedOpeningID } }
+    var selectedWallID: UUID? {
+        selection.wallIDs.count == 1 && selection.openingIDs.isEmpty ? selection.wallIDs.first : nil
+    }
+    var selectedOpeningID: UUID? {
+        selection.openingIDs.count == 1 && selection.wallIDs.isEmpty ? selection.openingIDs.first : nil
+    }
+    var canCopySelection: Bool { !selection.isEmpty }
+    var canPasteSelection: Bool {
+        canEditActiveLayer && pasteboard.availableType(from: [Self.selectionPasteboardType]) != nil
+    }
+    var canRotateSelection: Bool { !selection.wallIDs.isEmpty && canEditActiveLayer }
+    var rotationPreviewActive: Bool { rotationBasePlan != nil }
+
+    func report(_ message: String) { status = message }
+    func selectWall(_ id: UUID?, extending: Bool = false) {
+        guard canEditActiveLayer else { clearSelection(); return }
+        guard let id, plan.walls.contains(where: { $0.id == id }) else {
+            if !extending { clearSelection() }
+            return
+        }
+        cancelRotation()
+        if extending {
+            var next = selection
+            if next.wallIDs.contains(id) { next.wallIDs.remove(id) }
+            else { next.wallIDs.insert(id) }
+            selection = next
+        } else { selection = PlanSelection(wallIDs: [id]) }
+    }
+    func selectOpening(_ id: UUID?, extending: Bool = false) {
+        guard canEditActiveLayer else { clearSelection(); return }
+        guard let id, plan.openings.contains(where: { $0.id == id }) else {
+            if !extending { clearSelection() }
+            return
+        }
+        cancelRotation()
+        if extending {
+            var next = selection
+            if next.openingIDs.contains(id) { next.openingIDs.remove(id) }
+            else { next.openingIDs.insert(id) }
+            selection = next
+        } else { selection = PlanSelection(openingIDs: [id]) }
+    }
+    func selectAll() {
+        if let textView = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, textView.isFieldEditor {
+            textView.selectAll(nil)
+            return
+        }
+        guard canEditActiveLayer else { clearSelection(); return }
+        cancelRotation()
+        selection = PlanSelection(wallIDs: Set(plan.walls.map(\.id)))
+    }
+    @discardableResult
+    func change(_ message: String, _ edit: (inout FloorPlan) throws -> Void) -> Bool {
+        changeDocument(message) { try $0.editActivePlan(edit) }
+    }
+    private func remember(_ previous: PlanDocument) {
+        undoStack.append(previous)
+        if undoStack.count > 100 { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+    @discardableResult
+    private func changeDocument(_ message: String, _ edit: (inout PlanDocument) throws -> Void) -> Bool {
+        endLayerOpacityEdit()
+        cancelRotation()
+        do {
+            var next = document
+            try edit(&next)
+            try next.validate()
+            guard next != document else { return false }
+            remember(document)
+            let changedFloor = next.activeLayerID != document.activeLayerID
+            document = next
+            if changedFloor || !canEditActiveLayer { clearSelection() }
+            status = message
+            return true
+        } catch { status = error.localizedDescription; return false }
+    }
+    func commitWall(from: PlanPoint, to: PlanPoint) {
+        change("Wall added. Click the next corner to continue; press Escape to finish.") {
+            let id = try $0.addWall(from: from, to: to, thickness: $0.defaultWallThickness)
+            selection = PlanSelection(wallIDs: [id])
+        }
+    }
+    func placeOpening(on wallID: UUID, at offset: Double) {
+        let kind: OpeningKind = tool == .window ? .window : .door
+        change("\(kind.rawValue.capitalized) added. Select it to adjust its position or size.") {
+            let id = try $0.addOpening(wallID: wallID, kind: kind, offset: offset, width: openingWidth, height: openingHeight)
+            selection = PlanSelection(openingIDs: [id])
+        }
+    }
+    func updateWall(id: UUID, start: PlanPoint, end: PlanPoint, thickness: Double) {
+        change("Wall updated. Shared corners stay connected.") {
+            try $0.updateWall(id: id, start: start, end: end, thickness: thickness)
+        }
+    }
+    func updateOpening(id: UUID, offset: Double, width: Double, height: Double) {
+        change("Opening updated.") { try $0.updateOpening(id: id, offset: offset, width: width, height: height) }
+    }
+    func setDefaultThickness(_ thickness: Double) {
+        change("Default wall thickness updated.") { $0.defaultWallThickness = thickness }
+    }
+    func deleteSelection() {
+        guard !selection.isEmpty else { return }
+        let targets = selection
+        if change("Selection deleted. Use Undo to restore it.", {
+            for id in targets.openingIDs { $0.removeOpening(id: id) }
+            for id in targets.wallIDs { $0.removeWall(id: id) }
+        }) { clearSelection() }
+    }
+    func undo() {
+        if let editor = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, editor.isFieldEditor {
+            if editor.undoManager?.canUndo == true { editor.undoManager?.undo() }
+            return
+        }
+        endLayerOpacityEdit()
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(document); document = previous; clearSelection(); status = "Undone."
+    }
+    func redo() {
+        if let editor = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, editor.isFieldEditor {
+            if editor.undoManager?.canRedo == true { editor.undoManager?.redo() }
+            return
+        }
+        endLayerOpacityEdit()
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(document); document = next; clearSelection(); status = "Redone."
+    }
+    func clearSelection() {
+        cancelRotation()
+        selection = PlanSelection()
+    }
+    func copySelection() {
+        if let textView = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, textView.isFieldEditor {
+            textView.copy(nil)
+            return
+        }
+        guard canCopySelection else { report("Select walls or openings to copy."); return }
+        do {
+            let copied = try plan.copySelection(selection)
+            let data = try JSONEncoder().encode(copied)
+            pasteboard.clearContents()
+            guard pasteboard.setData(data, forType: Self.selectionPasteboardType) else {
+                report("The clipboard could not accept the selection.")
+                return
+            }
+            pasteboard.setString("QuickPlan: \(copied.walls.count) walls, \(copied.openings.count) openings", forType: .string)
+            lastPasteData = nil
+            pasteSequences.removeAll()
+            report("Selection copied. Paste onto this floor or select another floor first.")
+        } catch { report(error.localizedDescription) }
+    }
+    func pasteSelection() {
+        pasteSelection(inPlace: false)
+    }
+    func pasteInPlace() {
+        pasteSelection(inPlace: true)
+    }
+    private func pasteSelection(inPlace: Bool) {
+        if let textView = NSApplication.shared.keyWindow?.firstResponder as? NSTextView, textView.isFieldEditor {
+            textView.paste(nil)
+            return
+        }
+        guard canEditActiveLayer else {
+            report(activeLayer.isLocked ? PlanDocumentError.lockedLayer.localizedDescription : PlanDocumentError.hiddenLayer.localizedDescription)
+            return
+        }
+        guard let data = pasteboard.data(forType: Self.selectionPasteboardType) else {
+            report("Copy a QuickPlan selection before pasting.")
+            return
+        }
+        do {
+            let copied = try JSONDecoder().decode(PlanClipboard.self, from: data)
+            let target = copied.walls.isEmpty ? (selectedWallID ?? selectedOpening?.wallID) : nil
+            let changingHost = target.map { target in copied.openings.contains { $0.wallID != target } } ?? false
+            let nextSequence = lastPasteData == data ? (pasteSequences[activeLayer.id] ?? 0) + 1 : 1
+            let distance = 304.8 * Double(nextSequence)
+            let offset = inPlace || changingHost ? PlanPoint(x: 0, y: 0) : PlanPoint(x: distance, y: distance)
+            let succeeded = change(inPlace ? "Selection pasted in place with independent walls and openings." : "Selection pasted with independent walls and openings.") {
+                selection = try $0.paste(copied, offset: offset, targetWallID: target)
+            }
+            if succeeded && !inPlace {
+                if lastPasteData != data { pasteSequences.removeAll() }
+                lastPasteData = data
+                pasteSequences[activeLayer.id] = nextSequence
+            }
+        } catch { report("Could not paste: \(error.localizedDescription)") }
+    }
+
+    func beginRotation() {
+        guard canRotateSelection else {
+            if !canEditActiveLayer {
+                report(activeLayer.isLocked ? PlanDocumentError.lockedLayer.localizedDescription : PlanDocumentError.hiddenLayer.localizedDescription)
+            } else { report("Select a wall or a group of walls to rotate. Openings rotate with their host wall.") }
+            return
+        }
+        endLayerOpacityEdit()
+        cancelRotation()
+        let pivot: PlanPoint
+        do { pivot = try plan.selectionCenter(selection) }
+        catch { report(error.localizedDescription); return }
+        rotationBasePlan = plan
+        rotationBaseSelection = selection
+        rotationBaseLayerID = activeLayer.id
+        rotationPivot = pivot
+        if let reference = plan.walls.first(where: { selection.wallIDs.contains($0.id) }) {
+            rotationReferenceAngle = atan2(reference.end.y - reference.start.y, reference.end.x - reference.start.x) * 180 / .pi
+        }
+        rotationDegrees = 0
+        rotationPreviewPlan = plan
+    }
+    func previewRotation(_ degrees: Double) {
+        guard degrees.isFinite else {
+            rotationPreviewPlan = nil
+            rotationGuideDegrees = nil
+            report(PlanSelectionError.invalidRotation.localizedDescription)
+            return
+        }
+        if rotationBasePlan == nil { beginRotation() }
+        guard let original = rotationBasePlan, let targets = rotationBaseSelection,
+              let pivot = rotationPivot, rotationBaseLayerID == activeLayer.id,
+              canEditActiveLayer else { return }
+        // Whole turns have no geometric effect. Keep the dial's trigonometry
+        // bounded even when an unusually large finite angle is entered.
+        let boundedDegrees = degrees.truncatingRemainder(dividingBy: 360)
+        var adjusted = boundedDegrees
+        rotationGuideDegrees = nil
+        if smartGuides, let snapped = Geometry.snappedRotation(rotationReferenceAngle + boundedDegrees) {
+            let worldAngle = rotationReferenceAngle + boundedDegrees
+            let nearestTurn = snapped + ((worldAngle - snapped) / 360).rounded() * 360
+            adjusted = nearestTurn - rotationReferenceAngle
+            rotationGuideDegrees = snapped
+        }
+        rotationDegrees = adjusted
+        do {
+            var preview = original
+            try preview.rotateSelection(targets, byDegrees: adjusted, around: pivot)
+            rotationPreviewPlan = preview
+            report("Rotation preview: \(adjusted.formatted(.number.precision(.fractionLength(0...2))))°. Apply to keep it, or cancel.")
+        } catch {
+            rotationPreviewPlan = nil
+            rotationGuideDegrees = nil
+            report(error.localizedDescription)
+        }
+    }
+    func commitRotation() {
+        guard rotationBaseLayerID == activeLayer.id, canEditActiveLayer,
+              let preview = rotationPreviewPlan, rotationBasePlan != nil else {
+            cancelRotation()
+            return
+        }
+        let degrees = rotationDegrees
+        cancelRotation()
+        change("Selection rotated by \(degrees.formatted(.number.precision(.fractionLength(0...2))))°.") { $0 = preview }
+    }
+    func cancelRotation() {
+        rotationBasePlan = nil
+        rotationBaseSelection = nil
+        rotationBaseLayerID = nil
+        rotationPreviewPlan = nil
+        rotationPivot = nil
+        rotationGuideDegrees = nil
+        rotationDegrees = 0
+        rotationReferenceAngle = 0
+    }
+    func chooseTool(_ value: EditorTool) {
+        cancelRotation()
+        tool = value
+        if value == .door { applyPreset(OpeningPreset.doors[0]) }
+        if value == .window { applyPreset(OpeningPreset.windows[0]) }
+    }
+    func applyPreset(_ preset: OpeningPreset) { openingWidth = preset.width; openingHeight = preset.height }
+    func selectLayer(id: UUID) {
+        endLayerOpacityEdit()
+        cancelRotation()
+        do {
+            var next = document
+            try next.setActiveLayer(id: id)
+            document = next
+            clearSelection()
+            status = activeLayer.isLocked ? "\(activeLayer.name) is locked. Unlock it to draw or edit."
+                : (!activeLayer.isVisible ? "\(activeLayer.name) is hidden. Show it to draw or edit." : "Editing \(activeLayer.name). Other floors stay separate.")
+        } catch { status = error.localizedDescription }
+    }
+    func addLayer() {
+        changeDocument("New floor added. Draw over a faded reference floor to align the layout.") { try $0.addLayer() }
+    }
+    func duplicateActiveLayer() {
+        let id = activeLayer.id
+        changeDocument("Floor duplicated with independent walls and openings.") { try $0.duplicateLayer(id: id) }
+    }
+    func removeLayer(id: UUID) {
+        if changeDocument("Floor removed. Use Undo to restore it.", { try $0.removeLayer(id: id) }) { clearSelection() }
+    }
+    func renameLayer(id: UUID, name: String) {
+        changeDocument("Floor renamed.") { try $0.renameLayer(id: id, name: name) }
+    }
+    func setLayerLocked(id: UUID, locked: Bool) {
+        changeDocument(locked ? "Floor locked. Its walls and openings are protected." : "Floor unlocked.") {
+            try $0.setLayerLocked(id: id, locked: locked)
+        }
+    }
+    func setLayerVisible(id: UUID, visible: Bool) {
+        changeDocument(visible ? "Floor shown." : "Floor hidden.") { try $0.setLayerVisible(id: id, visible: visible) }
+    }
+    func moveLayer(id: UUID, to index: Int) {
+        changeDocument("Floor stacking order updated.") { try $0.moveLayer(id: id, to: index) }
+    }
+    func beginLayerOpacityEdit() {
+        endLayerOpacityEdit()
+        cancelRotation()
+        opacityEditStart = document
+    }
+    func setLayerOpacity(id: UUID, opacity: Double) {
+        guard opacityEditStart != nil else {
+            changeDocument("Floor opacity updated.") { try $0.setLayerOpacity(id: id, opacity: opacity) }
+            return
+        }
+        do {
+            var next = document
+            try next.setLayerOpacity(id: id, opacity: opacity)
+            document = next
+            status = "\(activeLayer.name) opacity: \(Int((activeLayer.opacity * 100).rounded()))%."
+        } catch { status = error.localizedDescription }
+    }
+    func endLayerOpacityEdit() {
+        guard let before = opacityEditStart else { return }
+        opacityEditStart = nil
+        if before.layers != document.layers { remember(before) }
+    }
+    func fit() {
+        NotificationCenter.default.post(name: Notification.Name("quickPlanFitCanvas"), object: nil)
+    }
+
+    private func confirmDiscard() -> Bool {
+        endLayerOpacityEdit()
+        cancelRotation()
+        guard isDirty else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Save changes to \(name)?"
+        alert.informativeText = "Your unsaved edits will be lost if you continue without saving."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Discard Changes")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: save(); return !isDirty
+        case .alertThirdButtonReturn: return true
+        default: return false
+        }
+    }
+    func confirmClose() -> Bool { confirmDiscard() }
+    func newPlan() {
+        guard confirmDiscard() else { return }
+        document = PlanDocument(plan: FloorPlan(defaultWallThickness: unit == .imperial ? 152.4 : 150))
+        lastPasteData = nil; pasteSequences.removeAll()
+        savedDocument = document; fileURL = nil
+        undoStack = []; redoStack = []; clearSelection(); fit()
+        status = "New plan. Choose Wall and click two corners to begin."
+    }
+    func open() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "quickplan") ?? .json, .json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        open(url: url)
+    }
+    func open(url: URL) {
+        guard confirmDiscard() else { return }
+        do {
+            let loaded = try JSONDecoder().decode(PlanDocument.self, from: Data(contentsOf: url))
+            try loaded.validate()
+            document = loaded; savedDocument = loaded; fileURL = url
+            lastPasteData = nil; pasteSequences.removeAll()
+            undoStack = []; redoStack = []; clearSelection(); fit()
+            status = "Opened \(url.lastPathComponent)."
+        } catch { status = "Could not open plan: \(error.localizedDescription)" }
+    }
+    func save() {
+        guard let url = fileURL else { saveAs(); return }
+        write(to: url)
+    }
+    func saveAs() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "quickplan") ?? .json]
+        panel.nameFieldStringValue = "\(name).quickplan"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        write(to: url)
+    }
+    private func write(to url: URL) {
+        endLayerOpacityEdit()
+        cancelRotation()
+        do {
+            try document.validate()
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(document).write(to: url, options: .atomic)
+            fileURL = url; savedDocument = document; status = "Saved all floors to \(url.lastPathComponent)."
+        } catch { status = "Could not save plan: \(error.localizedDescription)" }
+    }
+    func exportSVG() {
+        cancelRotation()
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.svg]
+        panel.title = "Export Active Floor SVG"
+        panel.message = "Exports \(activeLayer.name) at full opacity. Other floors are excluded."
+        panel.nameFieldStringValue = "\(name) - \(activeLayer.name).svg"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try plan.svg().write(to: url, atomically: true, encoding: .utf8)
+            status = "Exported \(activeLayer.name) only at full opacity; measurements are in millimetres."
+        } catch { status = "Export failed: \(error.localizedDescription)" }
+    }
+}
+#endif

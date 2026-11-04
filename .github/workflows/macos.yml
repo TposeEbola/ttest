@@ -1,0 +1,29 @@
+name: macOS build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Swift version
+        run: swift --version
+      - name: Test geometry and documents
+        run: swift test
+      - name: Build application
+        run: swift build --product QuickPlan
+      - name: Package application
+        run: |
+          ./scripts/build-app.sh
+          ditto -c -k --sequesterRsrc --keepParent dist/QuickPlan.app dist/QuickPlan-macOS.zip
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickPlan-macOS
+          path: dist/QuickPlan-macOS.zip
