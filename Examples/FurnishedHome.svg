@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="264mm" height="204mm" viewBox="-600 -600 13200 10200">
+<title>QuickPlan floor plan</title>
+<desc>Measurements are in millimetres. Drawing scale 1:50 when printed at 100 percent.</desc>
+<metadata>Model units: mm; drawing scale: 1:50</metadata>
+<rect x="-600" y="-600" width="13200" height="10200" fill="white"/>
+<metadata>Area geometry: mm²; area labels: square feet (sq ft)</metadata>
+<g class="room-area">
+<polygon class="area-boundary" points="100,100 3900,100 3900,4400 100,4400" fill="black" fill-opacity="0.035" stroke="black" stroke-width="5"/>
+<text class="area-label" x="2000" y="2250" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke"><tspan x="2000" dy="-45" font-weight="600">Bedroom</tspan><tspan x="2000" dy="100" font-size="75">175.882 sq ft</tspan></text>
+</g>
+<line class="wall" x1="0" y1="0" x2="12000" y2="0" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="12000" y1="0" x2="12000" y2="9000" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="12000" y1="9000" x2="0" y2="9000" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="0" y1="9000" x2="0" y2="0" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="4000" y1="0" x2="4000" y2="9000" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="0" y1="4500" x2="4000" y2="4500" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<line class="wall" x1="4000" y1="4500" x2="12000" y2="4500" stroke="black" stroke-width="200" stroke-linecap="butt"/>
+<polygon class="wall-junction" points="0,0 0,-100 -100,-100 -100,0" fill="black"/>
+<polygon class="wall-junction" points="0,9000 0,9100 -100,9100 -100,9000" fill="black"/>
+<polygon class="wall-junction" points="12000,0 12000,-100 12100,-100 12100,0" fill="black"/>
+<polygon class="wall-junction" points="12000,9000 12100,9000 12100,9100 12000,9100" fill="black"/>
+<g class="door" transform="translate(4000 2742.8) rotate(90)">
+<line class="opening-cutout" x1="0" y1="0" x2="914.4" y2="0" stroke="white" stroke-width="202" stroke-linecap="butt"/>
+<path class="door-leaf" transform="translate(0 100)" d="M 0 0 L 0 914.4 M 914.4 0 A 914.4 914.4 0 0 1 0 914.4" stroke="black" stroke-width="10" fill="none"/>
+</g>
+<g class="door" transform="translate(4000 5742.8) rotate(90)">
+<line class="opening-cutout" x1="0" y1="0" x2="914.4" y2="0" stroke="white" stroke-width="202" stroke-linecap="butt"/>
+<path class="door-leaf" transform="translate(0 100)" d="M 0 0 L 0 914.4 M 914.4 0 A 914.4 914.4 0 0 1 0 914.4" stroke="black" stroke-width="10" fill="none"/>
+</g>
+<g class="door" transform="translate(7642.8 4500) rotate(0)">
+<line class="opening-cutout" x1="0" y1="0" x2="914.4" y2="0" stroke="white" stroke-width="202" stroke-linecap="butt"/>
+<path class="door-leaf" transform="translate(0 100)" d="M 0 0 L 0 914.4 M 914.4 0 A 914.4 914.4 0 0 1 0 914.4" stroke="black" stroke-width="10" fill="none"/>
+</g>
+<g class="window" transform="translate(5538 0) rotate(0)">
+<line class="opening-cutout" x1="0" y1="0" x2="1524" y2="0" stroke="white" stroke-width="202" stroke-linecap="butt"/>
+<path d="M 0 -44 H 1524 M 0 44 H 1524 M 0 -100 V 100 M 1524 -100 V 100" stroke="black" stroke-width="10" fill="none"/>
+</g>
+<g class="window" transform="translate(12000 5890.4) rotate(90)">
+<line class="opening-cutout" x1="0" y1="0" x2="1219.2" y2="0" stroke="white" stroke-width="202" stroke-linecap="butt"/>
+<path d="M 0 -44 H 1219.2 M 0 44 H 1219.2 M 0 -100 V 100 M 1219.2 -100 V 100" stroke="black" stroke-width="10" fill="none"/>
+</g>
+<g class="plan-item" data-kind="bed" transform="translate(1500 1200) rotate(90)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Queen bed</title>
+<path d="M -762 -1016 L 762 -1016 L 762 1016 L -762 1016 Z"/>
+<path d="M -670.56 -873.76 L -60.96 -873.76 L -60.96 -447.04 L -670.56 -447.04 Z"/>
+<path d="M 60.96 -873.76 L 670.56 -873.76 L 670.56 -447.04 L 60.96 -447.04 Z"/>
+<path d="M -762 -284.48 L 762 -284.48"/>
+<path d="M -762 -162.56 L 762 -162.56"/>
+</g>
+<g class="plan-item" data-kind="nightstand" transform="translate(2850 850) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Nightstand</title>
+<path d="M -254 -228.6 L 254 -228.6 L 254 228.6 L -254 228.6 Z"/>
+<path d="M -213.36 -192.024 L 213.36 -192.024 L 213.36 192.024 L -213.36 192.024 Z"/>
+<path d="M -60.96 137.16 L 60.96 137.16"/>
+</g>
+<g class="plan-item" data-kind="bathtub" transform="translate(1200 5500) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Bathtub</title>
+<path d="M -762 -381 L 762 -381 L 762 381 L -762 381 Z"/>
+<ellipse cx="0" cy="0" rx="609.6" ry="342.9"/>
+<ellipse cx="0" cy="-228.6" rx="53.34" ry="15.24"/>
+<path d="M 0 -365.76 L 0 -274.32"/>
+</g>
+<g class="plan-item" data-kind="toilet" transform="translate(1000 7250) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Toilet</title>
+<path d="M -203.2 -381 L 203.2 -381 L 203.2 -182.88 L -203.2 -182.88 Z"/>
+<ellipse cx="0" cy="91.44" rx="193.04" ry="289.56"/>
+<ellipse cx="0" cy="99.06" rx="121.92" ry="194.31"/>
+<path d="M 91.44 -281.94 L 152.4 -281.94"/>
+</g>
+<g class="plan-item" data-kind="bathSink" transform="translate(2700 8000) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Bathroom sink</title>
+<path d="M -304.8 -254 L 304.8 -254 L 304.8 254 L -304.8 254 Z"/>
+<ellipse cx="0" cy="40.64" rx="231.648" ry="162.56"/>
+<ellipse cx="0" cy="66.04" rx="18.288" ry="15.24"/>
+<path d="M 0 -182.88 L 0 -86.36"/>
+<ellipse cx="-97.536" cy="-172.72" rx="24.384" ry="20.32"/>
+<ellipse cx="97.536" cy="-172.72" rx="24.384" ry="20.32"/>
+</g>
+<g class="plan-item" data-kind="counter" transform="translate(9200 550) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Counter</title>
+<path d="M -762 -317.5 L 762 -317.5 L 762 317.5 L -762 317.5 Z"/>
+<path d="M -762 -254 L 762 -254"/>
+<path d="M -762 254 L 762 254"/>
+</g>
+<g class="plan-item" data-kind="stove" transform="translate(10400 550) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Stove</title>
+<path d="M -381 -317.5 L 381 -317.5 L 381 317.5 L -381 317.5 Z"/>
+<path d="M -381 -209.55 L 381 -209.55"/>
+<ellipse cx="-175.26" cy="-57.15" rx="110.49" ry="92.075"/>
+<ellipse cx="175.26" cy="-57.15" rx="110.49" ry="92.075"/>
+<ellipse cx="-175.26" cy="177.8" rx="110.49" ry="92.075"/>
+<ellipse cx="175.26" cy="177.8" rx="110.49" ry="92.075"/>
+<ellipse cx="-198.12" cy="-260.35" rx="26.67" ry="22.225"/>
+<ellipse cx="0" cy="-260.35" rx="26.67" ry="22.225"/>
+<ellipse cx="198.12" cy="-260.35" rx="26.67" ry="22.225"/>
+</g>
+<g class="plan-item" data-kind="refrigerator" transform="translate(11400 550) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Refrigerator</title>
+<path d="M -457.2 -381 L 457.2 -381 L 457.2 381 L -457.2 381 Z"/>
+<path d="M -457.2 -121.92 L 457.2 -121.92"/>
+<path d="M -329.184 -304.8 L -329.184 -190.5"/>
+<path d="M -329.184 -22.86 L -329.184 167.64"/>
+</g>
+<g class="plan-item" data-kind="desk" transform="translate(6000 2200) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Desk</title>
+<path d="M -762 -381 L 762 -381 L 762 381 L -762 381 Z"/>
+<path d="M -655.32 -297.18 L -274.32 -297.18 L -274.32 297.18 L -655.32 297.18 Z"/>
+<path d="M -655.32 -99.06 L -274.32 -99.06"/>
+<path d="M -655.32 99.06 L -274.32 99.06"/>
+<path d="M -60.96 -236.22 L 487.68 -236.22 L 487.68 -83.82 L -60.96 -83.82 Z"/>
+<path d="M 213.36 -83.82 L 213.36 -15.24"/>
+<path d="M 76.2 -15.24 L 350.52 -15.24"/>
+</g>
+<g class="plan-item" data-kind="officeChair" transform="translate(6000 3000) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Office chair</title>
+<path d="M -196.85 -114.3 L 196.85 -114.3 L 196.85 184.15 L -196.85 184.15 Z"/>
+<path d="M -241.3 -285.75 L 241.3 -285.75 L 241.3 -158.75 L -241.3 -158.75 Z"/>
+<path d="M -292.1 -50.8 L -292.1 152.4"/>
+<path d="M 292.1 -50.8 L 292.1 152.4"/>
+<path d="M -203.2 292.1 L 0 88.9 L 203.2 292.1"/>
+<path d="M 0 88.9 L 0 317.5"/>
+</g>
+<g class="plan-item" data-kind="sofa" transform="translate(6200 6500) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Sofa</title>
+<path d="M -1066.8 -457.2 L 1066.8 -457.2 L 1066.8 457.2 L -1066.8 457.2 Z"/>
+<path d="M -1066.8 -457.2 L 1066.8 -457.2 L 1066.8 -246.888 L -1066.8 -246.888 Z"/>
+<path d="M -1066.8 -246.888 L -768.096 -246.888 L -768.096 457.2 L -1066.8 457.2 Z"/>
+<path d="M 768.096 -246.888 L 1066.8 -246.888 L 1066.8 457.2 L 768.096 457.2 Z"/>
+<path d="M -725.424 -219.456 L -256.032 -219.456 L -256.032 384.048 L -725.424 384.048 Z"/>
+<path d="M -234.696 -219.456 L 234.696 -219.456 L 234.696 384.048 L -234.696 384.048 Z"/>
+<path d="M 256.032 -219.456 L 725.424 -219.456 L 725.424 384.048 L 256.032 384.048 Z"/>
+</g>
+<g class="plan-item" data-kind="coffeeTable" transform="translate(6200 7700) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Coffee table</title>
+<path d="M -609.6 -304.8 L 609.6 -304.8 L 609.6 304.8 L -609.6 304.8 Z"/>
+<path d="M -408.432 -204.216 L -323.088 -204.216 L -323.088 -161.544 L -408.432 -161.544 Z"/>
+<path d="M -408.432 161.544 L -323.088 161.544 L -323.088 204.216 L -408.432 204.216 Z"/>
+<path d="M 323.088 -204.216 L 408.432 -204.216 L 408.432 -161.544 L 323.088 -161.544 Z"/>
+<path d="M 323.088 161.544 L 408.432 161.544 L 408.432 204.216 L 323.088 204.216 Z"/>
+<path d="M -512.064 -243.84 L 512.064 -243.84 L 512.064 243.84 L -512.064 243.84 Z"/>
+</g>
+<g class="plan-item" data-kind="straightStairs" transform="translate(10800 6500) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Straight stairs · 36 in</title>
+<path d="M -457.2 -1524 L 457.2 -1524 L 457.2 1524 L -457.2 1524 Z"/>
+<path d="M -457.2 -1371.6 L 457.2 -1371.6"/>
+<path d="M -457.2 -1066.8 L 457.2 -1066.8"/>
+<path d="M -457.2 -762 L 457.2 -762"/>
+<path d="M -457.2 -457.2 L 457.2 -457.2"/>
+<path d="M -457.2 -152.4 L 457.2 -152.4"/>
+<path d="M -457.2 152.4 L 457.2 152.4"/>
+<path d="M -457.2 457.2 L 457.2 457.2"/>
+<path d="M -457.2 762 L 457.2 762"/>
+<path d="M -457.2 1066.8 L 457.2 1066.8"/>
+<path d="M -457.2 1371.6 L 457.2 1371.6"/>
+<path d="M 0 1097.28 L 0 -1036.32"/>
+<path d="M -82.296 -609.6 L 0 -1036.32 L 82.296 -609.6"/>
+</g>
+<g class="plan-item" data-kind="person" transform="translate(8100 3500) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Person</title>
+<ellipse cx="0" cy="-67.056" rx="91.44" ry="54.864"/>
+<ellipse cx="0" cy="36.576" rx="208.28" ry="53.34"/>
+<path d="M -71.12 64.008 L -71.12 131.064"/>
+<path d="M 71.12 64.008 L 71.12 131.064"/>
+</g>
+<g class="plan-item" data-kind="plant" transform="translate(8400 7800) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Potted plant</title>
+<ellipse cx="0" cy="0" rx="100.584" ry="100.584"/>
+<ellipse cx="132.588" cy="0" rx="64.008" ry="64.008"/>
+<ellipse cx="93.753874" cy="93.753874" rx="64.008" ry="64.008"/>
+<ellipse cx="0" cy="132.588" rx="64.008" ry="64.008"/>
+<ellipse cx="-93.753874" cy="93.753874" rx="64.008" ry="64.008"/>
+<ellipse cx="-132.588" cy="0" rx="64.008" ry="64.008"/>
+<ellipse cx="-93.753874" cy="-93.753874" rx="64.008" ry="64.008"/>
+<ellipse cx="0" cy="-132.588" rx="64.008" ry="64.008"/>
+<ellipse cx="93.753874" cy="-93.753874" rx="64.008" ry="64.008"/>
+</g>
+<g class="plan-item" data-kind="ceilingLight" transform="translate(8100 2300) rotate(0)" stroke="black" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<title>Ceiling light</title>
+<ellipse cx="0" cy="0" rx="152.4" ry="152.4"/>
+<path d="M -106.68 -106.68 L 106.68 106.68"/>
+<path d="M 106.68 -106.68 L -106.68 106.68"/>
+</g>
+<g class="measurement" stroke="black" stroke-width="7" fill="none">
+<path class="measurement-extension" d="M 100 4100 L 100 3750 M 3900 4100 L 3900 3750"/>
+<path d="M 100 3750 L 3900 3750 M 100 3705 L 100 3795 M 3900 3705 L 3900 3795"/>
+</g>
+<text class="measurement-label" transform="translate(2000 3750) rotate(0)" y="-25" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="80" fill="black" stroke="white" stroke-width="12" paint-order="stroke">3800 mm</text>
+</svg>

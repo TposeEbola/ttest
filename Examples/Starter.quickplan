@@ -1,0 +1,71 @@
+{
+  "defaultWallThickness" : 152.4,
+  "openings" : [
+    {
+      "height" : 2032,
+      "id" : "C122AB08-5ECD-44C5-B15D-34AFA6696557",
+      "kind" : "door",
+      "offset" : 4572,
+      "wallID" : "56024248-9302-4CB3-86DB-49B22623C05B",
+      "width" : 914.4
+    },
+    {
+      "height" : 1219.2,
+      "id" : "9FE946BA-AC07-4EF3-BAF0-13039991ED7F",
+      "kind" : "window",
+      "offset" : 3048,
+      "wallID" : "72B6BDE7-CB5B-4008-80CE-B2F82C61B3DC",
+      "width" : 1219.2
+    }
+  ],
+  "walls" : [
+    {
+      "end" : {
+        "x" : 6096,
+        "y" : 0
+      },
+      "id" : "72B6BDE7-CB5B-4008-80CE-B2F82C61B3DC",
+      "start" : {
+        "x" : 0,
+        "y" : 0
+      },
+      "thickness" : 152.4
+    },
+    {
+      "end" : {
+        "x" : 6096,
+        "y" : 4572
+      },
+      "id" : "26EE1FDF-4B64-4DE2-A022-AE1F0603DF72",
+      "start" : {
+        "x" : 6096,
+        "y" : 0
+      },
+      "thickness" : 152.4
+    },
+    {
+      "end" : {
+        "x" : 0,
+        "y" : 4572
+      },
+      "id" : "56024248-9302-4CB3-86DB-49B22623C05B",
+      "start" : {
+        "x" : 6096,
+        "y" : 4572
+      },
+      "thickness" : 152.4
+    },
+    {
+      "end" : {
+        "x" : 0,
+        "y" : 0
+      },
+      "id" : "5AD37362-9C99-46C7-A23E-18A126E6A23C",
+      "start" : {
+        "x" : 0,
+        "y" : 4572
+      },
+      "thickness" : 152.4
+    }
+  ]
+}
