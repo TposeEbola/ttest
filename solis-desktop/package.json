@@ -1,0 +1,48 @@
+{
+  "name": "project-solis",
+  "version": "0.1.0",
+  "description": "A macOS-first desktop companion with voice and read-only disk diagnostics.",
+  "private": true,
+  "author": "Project Solis contributors",
+  "repository": { "type": "git", "url": "https://github.com/TposeEbola/ttest.git", "directory": "solis-desktop" },
+  "main": "src/main/main.cjs",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "prepare:macos": "node scripts/prepare-macos-speech.cjs",
+    "start": "node scripts/prepare-macos-speech.cjs && electron .",
+    "test": "node --test --test-isolation=none tests/*.test.cjs",
+    "test:ui": "node scripts/ui-smoke.cjs",
+    "pack": "node scripts/prepare-macos-speech.cjs && electron-builder --dir --publish never",
+    "dist": "node scripts/prepare-macos-speech.cjs && electron-builder --publish never"
+  },
+  "dependencies": { "plist": "5.0.0" },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "playwright": "1.64.1"
+  },
+  "build": {
+    "appId": "com.projectsolis.desktop",
+    "productName": "Project Solis",
+    "asar": true,
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "assets/**/*", "package.json"],
+    "extraResources": [ { "from": "build/native", "to": "native", "filter": ["**/*"] } ],
+    "mac": {
+      "minimumSystemVersion": "13.0.0",
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"],
+      "icon": "assets/logo.png",
+      "identity": null,
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Project Solis uses your microphone only when you choose to dictate a message.",
+        "NSSpeechRecognitionUsageDescription": "Project Solis transcribes your speech when you activate the microphone."
+      }
+    },
+    "win": { "target": "nsis", "icon": "assets/logo.png" },
+    "linux": { "target": ["AppImage"], "category": "Utility", "icon": "assets/logo.png" }
+  }
+}

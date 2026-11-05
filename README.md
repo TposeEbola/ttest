@@ -1,5 +1,7 @@
 # QuickPlan
 
+This repository also includes **[Project Solis](solis-desktop/README.md)**, a separate macOS-first desktop assistant. Its [Mac setup and testing guide](solis-desktop/docs/MACOS_TESTING.md) covers microphone access, voice replies, and read-only storage diagnostics.
+
 A small native macOS app for quick, measured 2D house plans. The editor uses a black-and-white canvas with blue alignment guides, precise wall dimensions, an object library, and floor layers for multi-storey designs. Drawing stays exclusively in 2D.
 
 ## What you can do

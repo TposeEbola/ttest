@@ -1,0 +1,59 @@
+name: Project Solis desktop
+
+on:
+  push:
+    paths:
+      - 'solis-desktop/**'
+      - '.github/workflows/solis.yml'
+  pull_request:
+    paths:
+      - 'solis-desktop/**'
+      - '.github/workflows/solis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: solis-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-package:
+    name: Test and package (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: solis-desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: solis-desktop/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build development installers without publishing
+        run: npm run dist
+      - name: Upload development build
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-solis-${{ matrix.os }}
+          path: |
+            solis-desktop/dist/*.dmg
+            solis-desktop/dist/*.zip
+            solis-desktop/dist/*.exe
+            solis-desktop/dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 14

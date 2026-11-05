@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="color-scheme" content="dark">
+  <title>Project Solis</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="renderer.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Project Solis navigation">
+      <div class="brand">
+        <div class="brand-symbol"><img class="brand-logo" src="../../assets/logo.png" alt="" width="44" height="44"><span class="brand-fallback" aria-hidden="true" hidden>S</span></div>
+        <div><div class="brand-name">Project Solis<span class="brand-period">.</span></div><div class="brand-caption">YOUR DESKTOP COMPANION</div></div>
+      </div>
+      <div class="sidebar-section-label">WORKSPACE</div>
+      <nav class="primary-nav">
+        <button class="nav-button" type="button" data-panel="assistant" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-4 3V11.5A7.5 7.5 0 0 1 9.5 4h3a7.5 7.5 0 0 1 7.5 7.5Z" transform="translate(1 -1) scale(.94)"/><path d="M8 11h8M8 14h5"/></svg><span>Assistant</span><span class="nav-shortcut">01</span></button>
+        <button class="nav-button" type="button" data-panel="diagnostics" data-testid="diagnostics"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M6 11h3l2-4 3 7 2-3h2"/></svg><span>Diagnostics</span><span class="nav-shortcut">02</span></button>
+        <button class="nav-button" type="button" data-panel="settings" data-testid="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor" stroke="none"/><circle cx="16" cy="17" r="3" fill="currentColor" stroke="none"/></svg><span>Settings</span><span class="nav-shortcut">03</span></button>
+      </nav>
+      <div class="sidebar-bottom-note"><div class="small-orbit" aria-hidden="true">✦</div><p>A little clarity.<br>A little less friction.</p></div>
+      <div class="sidebar-footer"><div class="platform-label"><span class="platform-dot" aria-hidden="true"></span><span id="platform-label">Desktop assistant</span></div><div class="safety-badge"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 7-6 7s-6-3-6-7V4l6-2Z"/><path d="m7 9 2 2 4-4"/></svg>Read-only disk access</div><div class="version-label" id="version-label">PROJECT SOLIS</div></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header"><div><div class="eyebrow">PROJECT SOLIS / <span id="section-eyebrow">ASSISTANT</span></div><h1 class="workspace-heading" id="workspace-heading">Your space to think.</h1></div><div class="header-status" data-testid="status" role="status" aria-live="polite"><span class="status-dot" id="status-dot" aria-hidden="true"></span><span class="status-copy" id="status-copy">Connecting to desktop…</span></div></header>
+      <div class="banner" id="global-banner" role="alert" hidden></div>
+
+      <section class="panel assistant-panel" id="assistant-panel" aria-label="Assistant">
+        <div class="chat-scroll" id="chat-scroll">
+          <div class="welcome" id="welcome-state">
+            <div class="hero-mark"><img src="../../assets/logo.png" alt="Project Solis emblem" width="98" height="98"><span class="brand-fallback" aria-hidden="true" hidden>S</span></div>
+            <div class="eyebrow welcome-eyebrow">A BRIGHTER WAY TO GET THINGS DONE</div>
+            <h2>Solis, at your service.</h2>
+            <p class="welcome-copy">A thoughtful companion for your desktop.<br>Start a conversation, check your space, or just say hello.</p>
+            <div class="prompt-grid" aria-label="Quick actions">
+              <button class="prompt-card" type="button" id="quick-diagnostics"><svg class="prompt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 13h18M16 16h2M6 9h4"/></svg><span class="prompt-title">A little room to breathe</span><span class="prompt-description">Check your disk space</span><span class="card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></span></button>
+              <button class="prompt-card" type="button" id="quick-voice"><svg class="prompt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><span class="prompt-title">Put a voice to the name</span><span class="prompt-description">Hear a hello from Solis</span><span class="card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></span></button>
+              <button class="prompt-card" type="button" id="quick-microphone"><svg class="prompt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M8 22h8"/></svg><span class="prompt-title">Think out loud</span><span class="prompt-description">Try your microphone</span><span class="card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></span></button>
+            </div>
+          </div>
+          <div class="conversation" id="conversation" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></div>
+          <div class="activity-line" id="activity" role="status" aria-live="polite"></div>
+        </div>
+        <div class="composer-wrap">
+          <form class="composer" id="chat-form"><label class="sr-only" for="chat-input">Message Solis</label><textarea id="chat-input" data-testid="chat-input" rows="2" maxlength="12000" placeholder="What's on your mind?" aria-describedby="composer-hint"></textarea><div class="composer-bottom"><span class="composer-hint" id="composer-hint">Enter to send <span aria-hidden="true">·</span> Shift + Enter for a new line</span><div class="composer-actions"><button type="button" class="icon-button" id="microphone-button" data-testid="mic" aria-label="Start microphone" title="Start microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M8 22h8"/></svg></button><button type="button" class="icon-button" id="stop-voice" aria-label="Stop voice reply" title="Stop voice reply" hidden><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button><button type="submit" class="primary-button send-button" id="send-button" data-testid="send">Send <span aria-hidden="true">↑</span></button></div></div></form>
+          <p class="composer-note"><span class="tiny-spark" aria-hidden="true">✦</span><span id="composer-note">Local tools work without an AI provider. Connect a model in Settings for open-ended chat.</span></p>
+        </div>
+      </section>
+
+      <section class="panel content-panel" id="diagnostics-panel" aria-label="Disk diagnostics" hidden>
+        <div class="section-heading"><div><div class="eyebrow">A CLEARER PICTURE</div><h2>Know your space.</h2><p class="muted">A safe look at your storage, with no changes to your disks.</p></div><button type="button" class="secondary-button" id="refresh-diagnostics">Refresh report <span aria-hidden="true">↻</span></button></div>
+        <div class="safety-notice"><span class="safety-badge">READ-ONLY</span><p>Capacity and device information only. Destructive disk commands are disabled.</p></div>
+        <div class="diagnostics-empty" id="diagnostics-empty"><svg class="empty-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="5"/><path d="M6 27h36M32 32h4M13 18h10"/></svg><h3>Your storage, at a glance.</h3><p>Run a read-only check to see available space and connected devices.</p><button class="primary-button" id="run-diagnostics" type="button">Check disk space <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></button></div>
+        <div id="diagnostics-report" hidden><div class="diagnostics-grid"><article class="metric-card"><span class="metric-label">TOTAL CAPACITY</span><strong id="disk-total">—</strong><span class="metric-caption">Reported filesystem capacity</span></article><article class="metric-card"><span class="metric-label">AVAILABLE SPACE</span><strong class="accent-text" id="disk-free">—</strong><span class="metric-caption">Available to this user</span></article><article class="metric-card"><span class="metric-label">USED SPACE</span><strong id="disk-used">—</strong><span class="metric-caption" id="disk-percent">—</span></article></div><article class="disk-capacity"><div class="report-section-heading"><h3>Storage overview</h3><span class="small-text" id="report-generated"></span></div><progress class="capacity-track" id="capacity-progress" max="100" value="0" aria-label="Storage space used"></progress><div class="capacity-legend"><span><i class="legend-dot used-dot" aria-hidden="true"></i>Used <b id="legend-used">—</b></span><span><i class="legend-dot free-dot" aria-hidden="true"></i>Available <b id="legend-free">—</b></span></div></article><article class="report-section"><div class="report-section-heading"><h3>Volumes &amp; devices</h3><span class="badge">INFORMATION ONLY</span></div><div class="detail-list" id="disk-devices"></div></article><div class="diagnostics-footnote"><span class="small-text">Hardware health is not assessed by this capacity check.</span><ul class="warning-list" id="diagnostic-warnings" hidden></ul></div></div>
+        <p id="diagnostics-status" class="inline-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel content-panel" id="settings-panel" aria-label="Settings" hidden>
+        <div class="section-heading"><div><div class="eyebrow">MAKE YOURSELF AT HOME</div><h2>Your Solis. Your way.</h2><p class="muted">Choose how you connect, speak, and listen.</p></div><span class="badge">DESKTOP PREFERENCES</span></div>
+        <form class="settings-form" id="settings-form">
+          <section class="settings-section"><div class="settings-section-title"><h3>Intelligence</h3><p>Built-in tools are ready from the start. Add a model for broader conversations.</p></div><label class="field-label" for="provider">AI provider</label><select id="provider" name="provider" class="form-field"><option value="local">Built-in local tools</option><option value="ollama">Ollama — local AI</option><option value="openai">OpenAI-compatible API</option></select><div id="model-fields" hidden><div class="field-grid"><div><label class="field-label" for="endpoint">Endpoint</label><input class="form-field" id="endpoint" name="endpoint" type="url" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:11434"></div><div><label class="field-label" for="model">Model name</label><input class="form-field" id="model" name="model" autocomplete="off" spellcheck="false" placeholder="llama3.2"></div></div><div id="api-key-field" hidden><label class="field-label" for="api-key">API key <span class="optional-label">OPTIONAL</span></label><input class="form-field" id="api-key" name="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="Enter your API key"><p class="field-help" id="api-key-help">Stored by the desktop app. Your saved key is never displayed here.</p></div><p class="field-help">Chat messages are sent to your selected endpoint. Local tools stay on your computer.</p></div></section>
+          <section class="settings-section"><div class="settings-section-title"><h3>Voice &amp; listening</h3><p>Keep your hands free when you want to. Your microphone only starts when you ask.</p></div><label class="toggle-row" for="voice-replies"><span><strong>Speak replies aloud</strong><span class="field-help">Use your system voice to read Solis’s responses.</span></span><input type="checkbox" id="voice-replies" name="voiceReplies" role="switch"></label><div class="voice-choice"><label class="field-label" for="voice-id">Preferred voice · Female Colombian Spanish (es-CO)</label><select class="form-field" id="voice-id" name="voiceId"><option value="">Automatic — closest available system voice</option></select><p class="field-help" id="selected-voice">Checking installed system voices…</p></div><div class="field-grid"><div><label class="field-label" for="speech-source">Speech recognition</label><select id="speech-source" name="speechSource" class="form-field"><option value="native">Native macOS recognition</option><option value="browser">Browser recognition</option></select><p class="field-help" id="speech-support">Checking speech availability…</p></div><div><div class="field-label">Microphone access</div><div class="permission-row"><span class="badge" id="microphone-permission">Not requested</span><button type="button" class="text-button" id="request-microphone">Request access</button></div><p class="field-help">Transcripts appear in your message box for review before sending.</p></div></div></section>
+          <div class="settings-actions"><p class="settings-status" id="settings-status" role="status" aria-live="polite"></p><button type="button" class="secondary-button" id="test-connection">Test connection</button><button type="submit" class="primary-button" id="save-settings">Save preferences <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></button></div>
+        </form>
+        <p class="settings-bottom-note">Project Solis never runs disk erase, format, repair, or partition commands.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.projectsolis.speech</string>
+    <key>CFBundleName</key>
+    <string>Project Solis Speech</string>
+    <key>CFBundleExecutable</key>
+    <string>SolisSpeech</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Project Solis uses your microphone only when you choose to dictate a message.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Project Solis converts your dictated message to text. Apple may process speech online if on-device recognition is unavailable.</string>
+</dict>
+</plist>
